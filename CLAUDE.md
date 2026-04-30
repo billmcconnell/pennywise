@@ -2,18 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Subagents v1.0
+## Subagents v2.0
 
-Spawn subagents to isolate context, parallelize independent work, or offload bulk mechanical tasks. Don't spawn when the parent needs the reasoning, when synthesis requires holding things together, or when spawn overhead dominates.
+Bulk mechanical work, scoped research, and parallel investigations should spawn a Claude Code subagent, not run in the parent. This keeps the parent's context clean and the prompt cache warm.
 
-Pick the cheapest model that can do the subtask well:
-- Haiku: bulk mechanical work, no judgment
-- Sonnet: scoped research, code exploration, in-scope synthesis
-- Opus: subtasks needing real planning or tradeoffs
+See [SUBAGENTS.md](./SUBAGENTS.md) for routing rules. Check it before defaulting to in-parent execution.
 
-If a subagent realizes it needs a higher tier than itself, return to the parent.
+## Preferred Tools
 
-Parent owns final output and cross-spawn synthesis. User instructions override.
+### Data Fetching
+
+1. **WebFetch**: free, text-only, works on public pages that don't block bots.
+2. **agent-browser CLI**: free, local Rust CLI + Chrome via CDP. For dynamic pages or auth walls that WebFetch can't handle. Returns the accessibility tree with element refs (@e1, @e2). ~82% fewer tokens than screenshot-based tools. Install: `npm i -g agent-browser && agent-browser install`. Use `snapshot` for AI-friendly DOM state, element refs for interaction.
+3. **Notice recurring fetch patterns and propose wrapping them as dedicated tools.** When the same fetch/parse logic comes up more than once, suggest wrapping it as a named tool (e.g. a skill file or a .py script that calls `agent-browser` with the snapshot and extraction steps baked in for that source). Add the entry to `## Dedicated Tools` below and reference it by name on future calls.
+
+### PDF Files
+
+Use 'pdftotext', not the 'Read' tool. Use 'Read' only when the user directly asks to analyze images or charts inside the document. Read loads PDFs as images.
+
+## Dedicated Tools
+
+<!-- List project-specific tools here. For each, link to its skill or script file (e.g. `tools/reddit_fetch.py`). The orchestration logic lives in those files, not here. -->
 
 ## Project Status
 
