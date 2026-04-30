@@ -1,0 +1,28 @@
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.cache/
+.vite/
+*.log
+*.tsbuildinfo
+.DS_Store
+.env
+.env.local
+.env.*.local
+!.env.example
+.pnpm-store/
+.pnpm-debug.log
+pgdata/
+.docker-data/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# project-private
+.claude/
+Budget Project input files/
+samples/
+
