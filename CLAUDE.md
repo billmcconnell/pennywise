@@ -26,12 +26,33 @@ Use 'pdftotext', not the 'Read' tool. Use 'Read' only when the user directly ask
 
 ## Project Status
 
-Pre-implementation. No source code, build system, package manifest, or tests exist yet. The repo currently contains:
+Phase 0 scaffold done (commit `a0918d4`, 2026-04-30). Phase 1 MVP next per PRD §8.
 
-- `personal_finance_tracker_prd.md` — full product spec (canonical source of truth for scope, features, data model, phasing).
-- `Budget Project input files/*.csv` — 12 months of real Amex statement exports (Dec 2024 → Dec 2025) used as reference/test fixtures for parser work.
+- `personal_finance_tracker_prd.md` — canonical spec (scope, features, data model, phasing).
+- `Budget Project input files/*.csv` — 12 months Amex statements (Dec 2024 → Dec 2025), reference/test fixtures.
 
-When asked to "build", "scaffold", or "start" the app, treat the PRD as the authoritative requirements doc. Confirm framework/stack choices with the user before generating code — the PRD lists *options* (React or Vue, Node or Django, etc.), not decisions.
+Stack locked (do not re-propose alternatives): Node 22 + TypeScript, pnpm workspaces, Fastify + Drizzle + Postgres 16 + pg-boss (api), Vite + React 18 + Tailwind + TanStack Query + Recharts (web), Zod (shared). PRD listed options; decisions made.
+
+## Package Layout
+
+- `packages/api` — Fastify server, Drizzle migrations (`drizzle/`), pg-boss jobs. Entry: `src/server.ts`.
+- `packages/web` — Vite + React SPA. Entry: `src/main.tsx`, `index.html`.
+- `packages/shared` — Zod schemas, types, category seed. Imported as `@pennywise/shared`.
+
+## Commands
+
+| Command | What |
+|---|---|
+| `pnpm dev` | api + web parallel (api :3000, health `/healthz`) |
+| `pnpm build` | tsc + vite build, all packages |
+| `pnpm typecheck` | tsc `--noEmit` workspace-wide |
+| `pnpm lint` / `pnpm format` | ESLint / Prettier |
+| `pnpm test` / `pnpm test:watch` | Vitest |
+| `pnpm db:up` / `db:down` / `db:logs` | Postgres 16 container |
+| `pnpm --filter @pennywise/api db:generate` | Drizzle migration gen |
+| `pnpm --filter @pennywise/api db:migrate` | apply migrations |
+
+Node version pinned `.nvmrc` (22). Use `fnm use` before install.
 
 ## Sample Data Format (Amex CSV)
 
