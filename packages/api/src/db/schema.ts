@@ -1,6 +1,121 @@
-/**
- * Drizzle schema. Phase 0 ships an empty schema so migrations can be
- * generated; Phase 1 fills in households / accounts / transactions /
- * categories per Appendix A and locked decisions.
- */
-export {};
+import { sql } from 'drizzle-orm';
+import {
+  boolean,
+  char,
+  date,
+  index,
+  numeric,
+  pgEnum,
+  pgTable,
+  real,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
+
+export const accountType = pgEnum('account_type', [
+  'checking',
+  'savings',
+  'credit_card',
+  'investment',
+]);
+
+export const households = pgTable('households', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+export const accounts = pgTable(
+  'accounts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    type: accountType('type').notNull(),
+    institution: text('institution'),
+    lastFour: char('last_four', { length: 4 }),
+    openingBalance: numeric('opening_balance', { precision: 14, scale: 2 })
+      .notNull()
+      .default('0'),
+    currencyCode: char('currency_code', { length: 3 }).notNull().default('USD'),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index('accounts_household_idx').on(t.householdId)],
+);
+
+export const categories = pgTable(
+  'categories',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    parentId: uuid('parent_id').references((): any => categories.id, { onDelete: 'set null' }),
+    isSystem: boolean('is_system').notNull().default(false),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    uniqueIndex('categories_household_slug_uq').on(t.householdId, t.slug),
+    index('categories_parent_idx').on(t.parentId),
+  ],
+);
+
+export const transactions = pgTable(
+  'transactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    transactionDate: date('transaction_date').notNull(),
+    postDate: date('post_date'),
+    amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+    currencyCode: char('currency_code', { length: 3 }).notNull().default('USD'),
+    description: text('description').notNull(),
+    originalDescription: text('original_description').notNull(),
+    merchant: text('merchant'),
+    categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+    notes: text('notes'),
+    tags: text('tags')
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    bankTransactionId: text('bank_transaction_id'),
+    fingerprint: text('fingerprint').notNull(),
+    autoCategorized: boolean('auto_categorized').notNull().default(false),
+    confidenceScore: real('confidence_score'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    uniqueIndex('transactions_account_fingerprint_uq').on(t.accountId, t.fingerprint),
+    index('transactions_household_date_idx').on(t.householdId, t.transactionDate),
+    index('transactions_category_idx').on(t.categoryId),
+  ],
+);
