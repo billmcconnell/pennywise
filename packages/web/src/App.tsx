@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  fetchByCategory,
   fetchCategories,
   fetchTransactions,
   patchTransactionCategory,
   type Category,
   type Transaction,
 } from './api';
+import { SpendingPie } from './SpendingPie';
 
 const monthOptions = (() => {
   const out: string[] = [];
@@ -33,10 +35,18 @@ export function App() {
     queryFn: fetchCategories,
   });
 
+  const byCat = useQuery({
+    queryKey: ['by-category', month],
+    queryFn: () => fetchByCategory(month),
+  });
+
   const patch = useMutation({
     mutationFn: ({ id, categoryId }: { id: string; categoryId: string | null }) =>
       patchTransactionCategory(id, categoryId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['transactions', month] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transactions', month] });
+      qc.invalidateQueries({ queryKey: ['by-category', month] });
+    },
   });
 
   const categoryOptions = useMemo(() => buildCategoryOptions(cats.data ?? []), [cats.data]);
@@ -60,6 +70,10 @@ export function App() {
           </select>
         </label>
       </header>
+
+      {byCat.data && cats.data && (
+        <SpendingPie totals={byCat.data} categories={cats.data} />
+      )}
 
       {txns.isLoading && <p className="text-zinc-500">loading…</p>}
       {txns.error && <p className="text-red-600">error: {(txns.error as Error).message}</p>}
