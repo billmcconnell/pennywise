@@ -12,6 +12,7 @@ import { healthRoutes } from './routes/health.js';
 import { importRoutes } from './routes/imports.js';
 import { categoryRoutes } from './routes/categories.js';
 import { transactionRoutes } from './routes/transactions.js';
+import { accountRoutes } from './routes/accounts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -37,6 +38,7 @@ async function main() {
   await app.register(importRoutes(db), { prefix: '/api' });
   await app.register(categoryRoutes(db), { prefix: '/api' });
   await app.register(transactionRoutes(db), { prefix: '/api' });
+  await app.register(accountRoutes(db), { prefix: '/api' });
 
   const webDist = path.resolve(__dirname, '..', config.WEB_DIST);
   await app.register(fastifyStatic, {

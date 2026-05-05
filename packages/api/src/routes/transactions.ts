@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db } from '../db/client.js';
-import { categories, transactions } from '../db/schema.js';
+import { accounts, categories, transactions } from '../db/schema.js';
 
 const listQuerySchema = z.object({
   month: z
@@ -47,12 +47,14 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
         description: transactions.description,
         originalDescription: transactions.originalDescription,
         accountId: transactions.accountId,
+        accountName: accounts.name,
         categoryId: transactions.categoryId,
         categorySlug: categories.slug,
         categoryName: categories.name,
       })
       .from(transactions)
       .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .leftJoin(accounts, eq(transactions.accountId, accounts.id))
       .where(and(...conditions))
       .orderBy(desc(transactions.transactionDate), desc(transactions.createdAt));
 

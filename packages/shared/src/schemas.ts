@@ -36,6 +36,24 @@ export const accountSchema = z.object({
 });
 export type Account = z.infer<typeof accountSchema>;
 
+export const accountCreateSchema = z.object({
+  name: z.string().min(1).max(120),
+  type: accountTypeSchema,
+  institution: z.string().max(120).nullable().optional(),
+  lastFour: z.string().regex(/^\d{4}$/).nullable().optional(),
+  openingBalance: moneySchema.optional(),
+  currencyCode: z.string().length(3).optional(),
+});
+export type AccountCreate = z.infer<typeof accountCreateSchema>;
+
+export const accountUpdateSchema = accountCreateSchema.partial();
+export type AccountUpdate = z.infer<typeof accountUpdateSchema>;
+
+export const accountWithBalanceSchema = accountSchema.extend({
+  currentBalance: moneySchema,
+});
+export type AccountWithBalance = z.infer<typeof accountWithBalanceSchema>;
+
 export const categorySchema = z.object({
   id: categoryIdSchema,
   householdId: householdIdSchema,
