@@ -1,10 +1,7 @@
+import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
 
-/**
- * Phase 0 dev auth: every request is treated as the seeded household.
- * Real Auth.js magic-link wires in Phase 1.
- */
-export const devAuthPlugin: FastifyPluginAsync = async (app) => {
+const plugin: FastifyPluginAsync = async (app) => {
   app.decorateRequest('household', null);
   app.addHook('onRequest', async (req) => {
     req.household = {
@@ -13,6 +10,8 @@ export const devAuthPlugin: FastifyPluginAsync = async (app) => {
     };
   });
 };
+
+export const devAuthPlugin = fp(plugin, { name: 'dev-auth' });
 
 declare module 'fastify' {
   interface FastifyRequest {

@@ -2,10 +2,12 @@ import { eq, and } from 'drizzle-orm';
 import { SEED_CATEGORIES } from '@pennywise/shared';
 import { loadConfig } from '../config.js';
 import { makeDb } from './client.js';
-import { categories, households } from './schema.js';
+import { accounts, categories, households } from './schema.js';
 
 const DEV_HOUSEHOLD_ID = '00000000-0000-0000-0000-000000000001';
 const DEV_HOUSEHOLD_NAME = 'Dev Household';
+const DEV_ACCOUNT_ID = '00000000-0000-0000-0000-000000000010';
+const DEV_ACCOUNT_NAME = 'Amex (dev)';
 
 async function seed(): Promise<void> {
   const config = loadConfig();
@@ -61,11 +63,24 @@ async function seed(): Promise<void> {
       bySlug.set(seedCat.slug, insertedId);
     }
 
+    await db
+      .insert(accounts)
+      .values({
+        id: DEV_ACCOUNT_ID,
+        householdId: DEV_HOUSEHOLD_ID,
+        name: DEV_ACCOUNT_NAME,
+        type: 'credit_card',
+        institution: 'American Express',
+      })
+      .onConflictDoNothing({ target: accounts.id });
+
     const total = await db
       .select()
       .from(categories)
       .where(and(eq(categories.householdId, DEV_HOUSEHOLD_ID)));
-    console.log(`seed ok: household=${DEV_HOUSEHOLD_ID} categories=${total.length}`);
+    console.log(
+      `seed ok: household=${DEV_HOUSEHOLD_ID} account=${DEV_ACCOUNT_ID} categories=${total.length}`,
+    );
   } finally {
     await pool.end();
   }

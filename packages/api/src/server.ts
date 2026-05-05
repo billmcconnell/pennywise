@@ -3,11 +3,13 @@ import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import sensible from '@fastify/sensible';
 import fastifyStatic from '@fastify/static';
+import fastifyMultipart from '@fastify/multipart';
 import { loadConfig } from './config.js';
 import { makeDb } from './db/client.js';
 import { makeQueue } from './queue/boss.js';
 import { devAuthPlugin } from './auth/dev-resolver.js';
 import { healthRoutes } from './routes/health.js';
+import { importRoutes } from './routes/imports.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -27,8 +29,10 @@ async function main() {
   const { db, pool } = makeDb(config.DATABASE_URL);
   const queue = await makeQueue(config.DATABASE_URL);
 
+  await app.register(fastifyMultipart, { limits: { fileSize: 25 * 1024 * 1024 } });
   await app.register(devAuthPlugin);
   await app.register(healthRoutes(db), { prefix: '/api' });
+  await app.register(importRoutes(db), { prefix: '/api' });
 
   const webDist = path.resolve(__dirname, '..', config.WEB_DIST);
   await app.register(fastifyStatic, {
