@@ -10,6 +10,8 @@ import { makeQueue } from './queue/boss.js';
 import { devAuthPlugin } from './auth/dev-resolver.js';
 import { healthRoutes } from './routes/health.js';
 import { importRoutes } from './routes/imports.js';
+import { categoryRoutes } from './routes/categories.js';
+import { transactionRoutes } from './routes/transactions.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -33,6 +35,8 @@ async function main() {
   await app.register(devAuthPlugin);
   await app.register(healthRoutes(db), { prefix: '/api' });
   await app.register(importRoutes(db), { prefix: '/api' });
+  await app.register(categoryRoutes(db), { prefix: '/api' });
+  await app.register(transactionRoutes(db), { prefix: '/api' });
 
   const webDist = path.resolve(__dirname, '..', config.WEB_DIST);
   await app.register(fastifyStatic, {
