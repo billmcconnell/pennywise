@@ -90,6 +90,17 @@ export const transactionSchema = z.object({
 });
 export type Transaction = z.infer<typeof transactionSchema>;
 
+export const transactionUpdateSchema = z
+  .object({
+    description: z.string().min(1).max(500).optional(),
+    merchant: z.string().max(200).nullable().optional(),
+    notes: z.string().max(2000).nullable().optional(),
+    tags: z.array(z.string().min(1).max(60)).max(50).optional(),
+    categoryId: categoryIdSchema.nullable().optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, { message: 'no fields to update' });
+export type TransactionUpdate = z.infer<typeof transactionUpdateSchema>;
+
 export const ruleMatchTypeSchema = z.enum([
   'merchant_contains',
   'merchant_equals',

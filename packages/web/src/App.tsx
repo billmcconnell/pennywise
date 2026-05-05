@@ -32,6 +32,7 @@ import { SpendingPie } from './SpendingPie';
 import { SummaryCards } from './SummaryCards';
 import { MonthlyTrend } from './MonthlyTrend';
 import { TopMerchants } from './TopMerchants';
+import { TxnEditModal } from './TxnEditModal';
 
 const monthOptions = (() => {
   const out: string[] = [];
@@ -107,13 +108,15 @@ function TabButton(props: { active: boolean; onClick: () => void; children: Reac
 function Dashboard() {
   const [month, setMonth] = useState<string>('2025-06');
   const [accountId, setAccountId] = useState<string>('');
+  const [search, setSearch] = useState<string>('');
+  const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const qc = useQueryClient();
 
   const accountsQ = useQuery({ queryKey: ['accounts'], queryFn: () => fetchAccounts(false) });
 
   const txns = useQuery({
-    queryKey: ['transactions', month, accountId],
-    queryFn: () => fetchTransactions(month, accountId || undefined),
+    queryKey: ['transactions', month, accountId, search],
+    queryFn: () => fetchTransactions(month, accountId || undefined, search || undefined),
   });
 
   const cats = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
@@ -182,6 +185,16 @@ function Dashboard() {
             ))}
           </select>
         </label>
+        <label className="text-sm text-zinc-600">
+          Search:{' '}
+          <input
+            type="search"
+            placeholder="description / merchant"
+            className="rounded border border-zinc-300 px-2 py-1"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
       </div>
 
       <UploadForm accounts={accountsQ.data ?? []} />
@@ -202,7 +215,15 @@ function Dashboard() {
           rows={txns.data}
           categories={categoryOptions}
           onChange={(id, categoryId) => patch.mutate({ id, categoryId })}
+          onEdit={(t) => setEditingTxn(t)}
           isPending={patch.isPending}
+        />
+      )}
+      {editingTxn && (
+        <TxnEditModal
+          txn={editingTxn}
+          categories={categoryOptions}
+          onClose={() => setEditingTxn(null)}
         />
       )}
     </>
@@ -859,10 +880,11 @@ function TransactionTable(props: {
   rows: Transaction[];
   categories: CategoryOption[];
   onChange: (id: string, categoryId: string | null) => void;
+  onEdit: (txn: Transaction) => void;
   isPending: boolean;
 }) {
   if (props.rows.length === 0) {
-    return <p className="text-zinc-500">No transactions for this month.</p>;
+    return <p className="text-zinc-500">No transactions match.</p>;
   }
   return (
     <div className="overflow-x-auto rounded border border-zinc-200">
@@ -874,6 +896,7 @@ function TransactionTable(props: {
             <th className="px-3 py-2 font-medium">Description</th>
             <th className="px-3 py-2 text-right font-medium">Amount</th>
             <th className="px-3 py-2 font-medium">Category</th>
+            <th className="px-3 py-2 font-medium" />
           </tr>
         </thead>
         <tbody>
@@ -881,7 +904,21 @@ function TransactionTable(props: {
             <tr key={r.id} className="border-t border-zinc-100">
               <td className="px-3 py-2 tabular-nums text-zinc-600">{r.transactionDate}</td>
               <td className="px-3 py-2 text-zinc-600">{r.accountName ?? '—'}</td>
-              <td className="px-3 py-2">{r.description}</td>
+              <td className="px-3 py-2">
+                <div>{r.description}</div>
+                {r.tags.length > 0 && (
+                  <div className="mt-0.5 flex flex-wrap gap-1">
+                    {r.tags.map((t) => (
+                      <span
+                        key={t}
+                        className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </td>
               <td
                 className={`px-3 py-2 text-right tabular-nums ${
                   Number(r.amount) < 0 ? 'text-emerald-700' : 'text-zinc-900'
@@ -905,6 +942,18 @@ function TransactionTable(props: {
                     </option>
                   ))}
                 </select>
+                {r.autoCategorized && (
+                  <span className="ml-1 text-xs text-zinc-400">auto</span>
+                )}
+              </td>
+              <td className="px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => props.onEdit(r)}
+                  className="rounded bg-zinc-200 px-2 py-1 text-xs text-zinc-800"
+                >
+                  Edit
+                </button>
               </td>
             </tr>
           ))}

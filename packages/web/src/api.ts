@@ -32,11 +32,23 @@ export interface Transaction {
   amount: string;
   description: string;
   originalDescription: string;
+  merchant: string | null;
+  notes: string | null;
+  tags: string[];
   accountId: string;
   accountName: string | null;
   categoryId: string | null;
   categorySlug: string | null;
   categoryName: string | null;
+  autoCategorized: boolean;
+}
+
+export interface TransactionUpdateBody {
+  description?: string;
+  merchant?: string | null;
+  notes?: string | null;
+  tags?: string[];
+  categoryId?: string | null;
 }
 
 export interface Category {
@@ -156,8 +168,12 @@ function buildQuery(params: Record<string, string | undefined>): string {
   return `?${usp.toString()}`;
 }
 
-export function fetchTransactions(month?: string, accountId?: string): Promise<Transaction[]> {
-  return jget<Transaction[]>(`/api/transactions${buildQuery({ month, accountId })}`);
+export function fetchTransactions(
+  month?: string,
+  accountId?: string,
+  q?: string,
+): Promise<Transaction[]> {
+  return jget<Transaction[]>(`/api/transactions${buildQuery({ month, accountId, q })}`);
 }
 
 export function fetchCategories(): Promise<Category[]> {
@@ -206,6 +222,10 @@ export async function patchTransactionCategory(
     body: JSON.stringify({ categoryId }),
   });
   if (!res.ok) throw new Error(`patch ${res.status}`);
+}
+
+export function patchTransaction(id: string, body: TransactionUpdateBody): Promise<Transaction> {
+  return jsend<Transaction>(`/api/transactions/${id}`, 'PATCH', body);
 }
 
 export function fetchAccounts(includeArchived = false): Promise<Account[]> {

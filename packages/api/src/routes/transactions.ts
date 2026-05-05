@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { and, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, isNull, lt, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { transactionUpdateSchema } from '@pennywise/shared';
 import type { Db } from '../db/client.js';
 import { accounts, categories, transactions } from '../db/schema.js';
 
@@ -10,6 +11,7 @@ const listQuerySchema = z.object({
     .regex(/^\d{4}-\d{2}$/)
     .optional(),
   accountId: z.string().uuid().optional(),
+  q: z.string().min(1).max(200).optional(),
 });
 
 const monthRangeSchema = z.object({
@@ -28,9 +30,6 @@ const topMerchantsQuerySchema = listQuerySchema.extend({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
-const patchBodySchema = z.object({
-  categoryId: z.string().uuid().nullable(),
-});
 
 function monthBounds(month: string): { start: string; end: string } {
   const [y, m] = month.split('-').map(Number);
@@ -58,7 +57,7 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     if (!parsed.success) {
       return reply.code(400).send({ error: 'bad query', detail: parsed.error.flatten() });
     }
-    const { month, accountId } = parsed.data;
+    const { month, accountId, q } = parsed.data;
 
     const conditions = [eq(transactions.householdId, household.id)];
     if (accountId) conditions.push(eq(transactions.accountId, accountId));
@@ -66,6 +65,15 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
       const { start, end } = monthBounds(month);
       conditions.push(gte(transactions.transactionDate, start));
       conditions.push(lt(transactions.transactionDate, end));
+    }
+    if (q) {
+      const pat = `%${q}%`;
+      const orExpr = or(
+        ilike(transactions.description, pat),
+        ilike(transactions.originalDescription, pat),
+        ilike(transactions.merchant, pat),
+      );
+      if (orExpr) conditions.push(orExpr);
     }
 
     const rows = await db
@@ -75,11 +83,15 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
         amount: transactions.amount,
         description: transactions.description,
         originalDescription: transactions.originalDescription,
+        merchant: transactions.merchant,
+        notes: transactions.notes,
+        tags: transactions.tags,
         accountId: transactions.accountId,
         accountName: accounts.name,
         categoryId: transactions.categoryId,
         categorySlug: categories.slug,
         categoryName: categories.name,
+        autoCategorized: transactions.autoCategorized,
       })
       .from(transactions)
       .leftJoin(categories, eq(transactions.categoryId, categories.id))
@@ -97,18 +109,34 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     const idCheck = z.string().uuid().safeParse(req.params.id);
     if (!idCheck.success) return reply.code(400).send({ error: 'bad id' });
 
-    const body = patchBodySchema.safeParse(req.body);
+    const body = transactionUpdateSchema.safeParse(req.body);
     if (!body.success) {
       return reply.code(400).send({ error: 'bad body', detail: body.error.flatten() });
     }
 
+    if (body.data.categoryId) {
+      const cat = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(
+          and(eq(categories.id, body.data.categoryId), eq(categories.householdId, household.id)),
+        )
+        .limit(1);
+      if (cat.length === 0) return reply.code(400).send({ error: 'category not found' });
+    }
+
+    const patch: Record<string, unknown> = { autoCategorized: false };
+    if (body.data.description !== undefined) patch.description = body.data.description;
+    if (body.data.merchant !== undefined) patch.merchant = body.data.merchant;
+    if (body.data.notes !== undefined) patch.notes = body.data.notes;
+    if (body.data.tags !== undefined) patch.tags = body.data.tags;
+    if (body.data.categoryId !== undefined) patch.categoryId = body.data.categoryId;
+
     const updated = await db
       .update(transactions)
-      .set({ categoryId: body.data.categoryId, autoCategorized: false })
-      .where(
-        and(eq(transactions.id, req.params.id), eq(transactions.householdId, household.id)),
-      )
-      .returning({ id: transactions.id, categoryId: transactions.categoryId });
+      .set(patch)
+      .where(and(eq(transactions.id, req.params.id), eq(transactions.householdId, household.id)))
+      .returning();
 
     if (updated.length === 0) return reply.code(404).send({ error: 'not found' });
     return updated[0];
