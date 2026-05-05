@@ -47,6 +47,34 @@ export interface Category {
   isSystem: boolean;
 }
 
+export interface Summary {
+  month: string | null;
+  accountId: string | null;
+  income: string;
+  expenses: string;
+  net: string;
+  txnCount: number;
+  uncategorizedCount: number;
+  largestCategory: {
+    categoryId: string | null;
+    slug: string | null;
+    name: string | null;
+    total: string;
+  } | null;
+}
+
+export interface MonthlyPoint {
+  month: string;
+  income: string;
+  expenses: string;
+}
+
+export interface MerchantTotal {
+  key: string;
+  total: string;
+  count: number;
+}
+
 export interface CategoryTotal {
   categoryId: string | null;
   slug: string | null;
@@ -139,6 +167,32 @@ export function fetchCategories(): Promise<Category[]> {
 export function fetchByCategory(month?: string, accountId?: string): Promise<CategoryTotal[]> {
   return jget<CategoryTotal[]>(
     `/api/transactions/by-category${buildQuery({ month, accountId })}`,
+  );
+}
+
+export function fetchSummary(month?: string, accountId?: string): Promise<Summary> {
+  return jget<Summary>(`/api/transactions/summary${buildQuery({ month, accountId })}`);
+}
+
+export function fetchByMonth(
+  from?: string,
+  to?: string,
+  accountId?: string,
+): Promise<MonthlyPoint[]> {
+  return jget<MonthlyPoint[]>(`/api/transactions/by-month${buildQuery({ from, to, accountId })}`);
+}
+
+export function fetchTopMerchants(
+  month?: string,
+  accountId?: string,
+  limit?: number,
+): Promise<MerchantTotal[]> {
+  return jget<MerchantTotal[]>(
+    `/api/transactions/top-merchants${buildQuery({
+      month,
+      accountId,
+      limit: limit ? String(limit) : undefined,
+    })}`,
   );
 }
 

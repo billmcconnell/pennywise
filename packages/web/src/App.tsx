@@ -8,8 +8,11 @@ import {
   deleteRule,
   fetchAccounts,
   fetchByCategory,
+  fetchByMonth,
   fetchCategories,
   fetchRules,
+  fetchSummary,
+  fetchTopMerchants,
   fetchTransactions,
   patchTransactionCategory,
   updateAccount,
@@ -26,6 +29,9 @@ import {
   type Transaction,
 } from './api';
 import { SpendingPie } from './SpendingPie';
+import { SummaryCards } from './SummaryCards';
+import { MonthlyTrend } from './MonthlyTrend';
+import { TopMerchants } from './TopMerchants';
 
 const monthOptions = (() => {
   const out: string[] = [];
@@ -117,12 +123,28 @@ function Dashboard() {
     queryFn: () => fetchByCategory(month, accountId || undefined),
   });
 
+  const summaryQ = useQuery({
+    queryKey: ['summary', month, accountId],
+    queryFn: () => fetchSummary(month, accountId || undefined),
+  });
+
+  const byMonthQ = useQuery({
+    queryKey: ['by-month', accountId, month],
+    queryFn: () => fetchByMonth(undefined, month, accountId || undefined),
+  });
+
+  const topMerchantsQ = useQuery({
+    queryKey: ['top-merchants', month, accountId],
+    queryFn: () => fetchTopMerchants(month, accountId || undefined, 10),
+  });
+
   const patch = useMutation({
     mutationFn: ({ id, categoryId }: { id: string; categoryId: string | null }) =>
       patchTransactionCategory(id, categoryId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['by-category'] });
+      qc.invalidateQueries({ queryKey: ['summary'] });
     },
   });
 
@@ -164,7 +186,14 @@ function Dashboard() {
 
       <UploadForm accounts={accountsQ.data ?? []} />
 
-      {byCat.data && cats.data && <SpendingPie totals={byCat.data} categories={cats.data} />}
+      <SummaryCards summary={summaryQ.data} isLoading={summaryQ.isLoading} />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {byCat.data && cats.data && <SpendingPie totals={byCat.data} categories={cats.data} />}
+        {byMonthQ.data && <MonthlyTrend data={byMonthQ.data} />}
+      </div>
+
+      {topMerchantsQ.data && <TopMerchants data={topMerchantsQ.data} />}
 
       {txns.isLoading && <p className="text-zinc-500">loading…</p>}
       {txns.error && <p className="text-red-600">error: {(txns.error as Error).message}</p>}
@@ -193,6 +222,9 @@ function UploadForm(props: { accounts: Account[] }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['by-category'] });
+      qc.invalidateQueries({ queryKey: ['summary'] });
+      qc.invalidateQueries({ queryKey: ['by-month'] });
+      qc.invalidateQueries({ queryKey: ['top-merchants'] });
       qc.invalidateQueries({ queryKey: ['accounts'] });
       setFile(null);
     },

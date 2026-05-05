@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { and, desc, eq, gte, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Db } from '../db/client.js';
 import { accounts, categories, transactions } from '../db/schema.js';
@@ -12,9 +12,42 @@ const listQuerySchema = z.object({
   accountId: z.string().uuid().optional(),
 });
 
+const monthRangeSchema = z.object({
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/)
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/)
+    .optional(),
+  accountId: z.string().uuid().optional(),
+});
+
+const topMerchantsQuerySchema = listQuerySchema.extend({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
 const patchBodySchema = z.object({
   categoryId: z.string().uuid().nullable(),
 });
+
+function monthBounds(month: string): { start: string; end: string } {
+  const [y, m] = month.split('-').map(Number);
+  const start = `${y}-${String(m).padStart(2, '0')}-01`;
+  const nextMonth = m === 12 ? 1 : m! + 1;
+  const nextYear = m === 12 ? y! + 1 : y;
+  const end = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+  return { start, end };
+}
+
+function addMonths(month: string, delta: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const total = y! * 12 + (m! - 1) + delta;
+  const ny = Math.floor(total / 12);
+  const nm = (total % 12) + 1;
+  return `${ny}-${String(nm).padStart(2, '0')}`;
+}
 
 export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) => {
   app.get('/transactions', async (req, reply) => {
@@ -30,11 +63,7 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     const conditions = [eq(transactions.householdId, household.id)];
     if (accountId) conditions.push(eq(transactions.accountId, accountId));
     if (month) {
-      const [y, m] = month.split('-').map(Number);
-      const start = `${y}-${String(m).padStart(2, '0')}-01`;
-      const nextMonth = m === 12 ? 1 : m! + 1;
-      const nextYear = m === 12 ? y! + 1 : y;
-      const end = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+      const { start, end } = monthBounds(month);
       conditions.push(gte(transactions.transactionDate, start));
       conditions.push(lt(transactions.transactionDate, end));
     }
@@ -98,11 +127,7 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     const conditions = [eq(transactions.householdId, household.id)];
     if (accountId) conditions.push(eq(transactions.accountId, accountId));
     if (month) {
-      const [y, m] = month.split('-').map(Number);
-      const start = `${y}-${String(m).padStart(2, '0')}-01`;
-      const nextMonth = m === 12 ? 1 : m! + 1;
-      const nextYear = m === 12 ? y! + 1 : y;
-      const end = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+      const { start, end } = monthBounds(month);
       conditions.push(gte(transactions.transactionDate, start));
       conditions.push(lt(transactions.transactionDate, end));
     }
@@ -119,6 +144,170 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
       .leftJoin(categories, eq(transactions.categoryId, categories.id))
       .where(and(...conditions))
       .groupBy(categories.id, categories.slug, categories.name);
+
+    return rows;
+  });
+
+  app.get('/transactions/summary', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const parsed = listQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'bad query', detail: parsed.error.flatten() });
+    }
+    const { month, accountId } = parsed.data;
+
+    const conditions = [eq(transactions.householdId, household.id)];
+    if (accountId) conditions.push(eq(transactions.accountId, accountId));
+    if (month) {
+      const { start, end } = monthBounds(month);
+      conditions.push(gte(transactions.transactionDate, start));
+      conditions.push(lt(transactions.transactionDate, end));
+    }
+
+    const totals = await db
+      .select({
+        expenses: sql<string>`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), '0')`,
+        income: sql<string>`coalesce(sum(case when ${transactions.amount} < 0 then -${transactions.amount} else 0 end), '0')`,
+        txnCount: sql<number>`cast(count(*) as int)`,
+      })
+      .from(transactions)
+      .where(and(...conditions));
+
+    const uncatRows = await db
+      .select({ count: sql<number>`cast(count(*) as int)` })
+      .from(transactions)
+      .where(and(...conditions, isNull(transactions.categoryId)));
+
+    const topCatRows = await db
+      .select({
+        categoryId: categories.id,
+        slug: categories.slug,
+        name: categories.name,
+        total: sql<string>`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), '0')`,
+      })
+      .from(transactions)
+      .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(and(...conditions))
+      .groupBy(categories.id, categories.slug, categories.name)
+      .orderBy(
+        sql`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), 0) desc`,
+      )
+      .limit(1);
+
+    const t = totals[0] ?? { expenses: '0', income: '0', txnCount: 0 };
+    const expensesNum = Number(t.expenses);
+    const incomeNum = Number(t.income);
+    const top = topCatRows[0];
+    const largestCategory =
+      top && Number(top.total) > 0
+        ? {
+            categoryId: top.categoryId,
+            slug: top.slug,
+            name: top.name,
+            total: top.total,
+          }
+        : null;
+
+    return {
+      month: month ?? null,
+      accountId: accountId ?? null,
+      income: incomeNum.toFixed(2),
+      expenses: expensesNum.toFixed(2),
+      net: (incomeNum - expensesNum).toFixed(2),
+      txnCount: t.txnCount,
+      uncategorizedCount: uncatRows[0]?.count ?? 0,
+      largestCategory,
+    };
+  });
+
+  app.get('/transactions/by-month', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const parsed = monthRangeSchema.safeParse(req.query);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'bad query', detail: parsed.error.flatten() });
+    }
+    let { from, to } = parsed.data;
+    const { accountId } = parsed.data;
+
+    if (!to) {
+      const now = new Date();
+      to = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    }
+    if (!from) from = addMonths(to, -11);
+
+    const fromBounds = monthBounds(from);
+    const toBounds = monthBounds(to);
+
+    const conditions = [
+      eq(transactions.householdId, household.id),
+      gte(transactions.transactionDate, fromBounds.start),
+      lt(transactions.transactionDate, toBounds.end),
+    ];
+    if (accountId) conditions.push(eq(transactions.accountId, accountId));
+
+    const monthExpr = sql<string>`to_char(${transactions.transactionDate}, 'YYYY-MM')`;
+
+    const rows = await db
+      .select({
+        month: monthExpr,
+        expenses: sql<string>`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), '0')`,
+        income: sql<string>`coalesce(sum(case when ${transactions.amount} < 0 then -${transactions.amount} else 0 end), '0')`,
+      })
+      .from(transactions)
+      .where(and(...conditions))
+      .groupBy(monthExpr)
+      .orderBy(monthExpr);
+
+    const byMonth = new Map(rows.map((r) => [r.month, r]));
+    const out: { month: string; income: string; expenses: string }[] = [];
+    let cursor = from;
+    while (cursor <= to) {
+      const r = byMonth.get(cursor);
+      out.push({
+        month: cursor,
+        income: r ? r.income : '0',
+        expenses: r ? r.expenses : '0',
+      });
+      cursor = addMonths(cursor, 1);
+    }
+    return out;
+  });
+
+  app.get('/transactions/top-merchants', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const parsed = topMerchantsQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'bad query', detail: parsed.error.flatten() });
+    }
+    const { month, accountId, limit } = parsed.data;
+
+    const conditions = [eq(transactions.householdId, household.id)];
+    if (accountId) conditions.push(eq(transactions.accountId, accountId));
+    if (month) {
+      const { start, end } = monthBounds(month);
+      conditions.push(gte(transactions.transactionDate, start));
+      conditions.push(lt(transactions.transactionDate, end));
+    }
+
+    const rows = await db
+      .select({
+        key: transactions.description,
+        total: sql<string>`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), '0')`,
+        count: sql<number>`cast(count(*) as int)`,
+      })
+      .from(transactions)
+      .where(and(...conditions, sql`${transactions.amount} > 0`))
+      .groupBy(transactions.description)
+      .orderBy(
+        sql`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), 0) desc`,
+      )
+      .limit(limit ?? 10);
 
     return rows;
   });
