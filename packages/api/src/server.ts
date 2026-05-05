@@ -13,6 +13,7 @@ import { importRoutes } from './routes/imports.js';
 import { categoryRoutes } from './routes/categories.js';
 import { transactionRoutes } from './routes/transactions.js';
 import { accountRoutes } from './routes/accounts.js';
+import { ruleRoutes } from './routes/rules.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,6 +40,7 @@ async function main() {
   await app.register(categoryRoutes(db), { prefix: '/api' });
   await app.register(transactionRoutes(db), { prefix: '/api' });
   await app.register(accountRoutes(db), { prefix: '/api' });
+  await app.register(ruleRoutes(db), { prefix: '/api' });
 
   const webDist = path.resolve(__dirname, '..', config.WEB_DIST);
   await app.register(fastifyStatic, {

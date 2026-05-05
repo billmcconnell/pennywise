@@ -8,6 +8,13 @@
       "when": 1777938662855,
       "tag": "0000_freezing_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777988005175,
+      "tag": "0001_talented_wonder_man",
+      "breakpoints": true
     }
   ]
 }

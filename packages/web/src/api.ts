@@ -59,7 +59,48 @@ export interface ImportResult {
   parsed: number;
   inserted: number;
   skipped: number;
+  autoCategorized: number;
   errors: { rowIndex: number; message: string }[];
+}
+
+export type RuleMatchType =
+  | 'merchant_contains'
+  | 'merchant_equals'
+  | 'description_contains'
+  | 'description_regex';
+
+export interface Rule {
+  id: string;
+  householdId: string;
+  matchType: RuleMatchType;
+  pattern: string;
+  caseInsensitive: boolean;
+  categoryId: string;
+  categoryName: string | null;
+  categorySlug: string | null;
+  priority: number;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RuleCreateBody {
+  matchType: RuleMatchType;
+  pattern: string;
+  caseInsensitive?: boolean;
+  categoryId: string;
+  priority?: number;
+  enabled?: boolean;
+}
+
+export type RuleUpdateBody = Partial<RuleCreateBody>;
+
+export type RuleApplyScope = 'uncategorized' | 'auto_categorized' | 'all_unedited';
+
+export interface RuleApplyResult {
+  scanned: number;
+  matched: number;
+  updated: number;
 }
 
 async function jget<T>(url: string): Promise<T> {
@@ -129,6 +170,32 @@ export function updateAccount(id: string, body: AccountUpdateBody): Promise<Acco
 export async function archiveAccount(id: string): Promise<void> {
   const res = await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error(`delete ${res.status}`);
+}
+
+export function fetchRules(): Promise<Rule[]> {
+  return jget<Rule[]>('/api/rules');
+}
+
+export function createRule(body: RuleCreateBody): Promise<Rule> {
+  return jsend<Rule>('/api/rules', 'POST', body);
+}
+
+export function updateRule(id: string, body: RuleUpdateBody): Promise<Rule> {
+  return jsend<Rule>(`/api/rules/${id}`, 'PATCH', body);
+}
+
+export async function deleteRule(id: string): Promise<void> {
+  const res = await fetch(`/api/rules/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`delete ${res.status}`);
+}
+
+export function applyRulesNow(
+  scope: RuleApplyScope,
+  accountId?: string,
+): Promise<RuleApplyResult> {
+  const body: { scope: RuleApplyScope; accountId?: string } = { scope };
+  if (accountId) body.accountId = accountId;
+  return jsend<RuleApplyResult>('/api/rules/apply', 'POST', body);
 }
 
 export async function uploadCsv(accountId: string, file: File): Promise<ImportResult> {

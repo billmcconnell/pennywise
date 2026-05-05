@@ -4,6 +4,7 @@ import {
   char,
   date,
   index,
+  integer,
   numeric,
   pgEnum,
   pgTable,
@@ -19,6 +20,13 @@ export const accountType = pgEnum('account_type', [
   'savings',
   'credit_card',
   'investment',
+]);
+
+export const ruleMatchType = pgEnum('rule_match_type', [
+  'merchant_contains',
+  'merchant_equals',
+  'description_contains',
+  'description_regex',
 ]);
 
 export const households = pgTable('households', {
@@ -117,5 +125,32 @@ export const transactions = pgTable(
     uniqueIndex('transactions_account_fingerprint_uq').on(t.accountId, t.fingerprint),
     index('transactions_household_date_idx').on(t.householdId, t.transactionDate),
     index('transactions_category_idx').on(t.categoryId),
+  ],
+);
+
+export const categorizationRules = pgTable(
+  'categorization_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    matchType: ruleMatchType('match_type').notNull(),
+    pattern: text('pattern').notNull(),
+    caseInsensitive: boolean('case_insensitive').notNull().default(true),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'cascade' }),
+    priority: integer('priority').notNull().default(0),
+    enabled: boolean('enabled').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('rules_household_idx').on(t.householdId),
+    index('rules_priority_idx').on(t.householdId, t.enabled, t.priority),
   ],
 );

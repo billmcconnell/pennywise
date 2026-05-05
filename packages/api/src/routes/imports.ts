@@ -1,13 +1,15 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import { accounts, categories, transactions } from '../db/schema.js';
+import { accounts, categories, categorizationRules, transactions } from '../db/schema.js';
 import { parseAmexCsv } from '../ingest/amex-parser.js';
+import { applyRules, sortRules, type RuleLike } from '../ingest/rules-engine.js';
 
 export interface ImportResult {
   parsed: number;
   inserted: number;
   skipped: number;
+  autoCategorized: number;
   errors: { rowIndex: number; message: string }[];
 }
 
@@ -50,9 +52,38 @@ export const importRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) 
       .limit(1);
     const uncategorizedId = uncat[0]?.id ?? null;
 
+    const ruleRows = await db
+      .select({
+        id: categorizationRules.id,
+        matchType: categorizationRules.matchType,
+        pattern: categorizationRules.pattern,
+        caseInsensitive: categorizationRules.caseInsensitive,
+        categoryId: categorizationRules.categoryId,
+        priority: categorizationRules.priority,
+        enabled: categorizationRules.enabled,
+      })
+      .from(categorizationRules)
+      .where(
+        and(
+          eq(categorizationRules.householdId, household.id),
+          eq(categorizationRules.enabled, true),
+        ),
+      );
+    const sortedRules = sortRules(ruleRows as RuleLike[]);
+
     let inserted = 0;
     let skipped = 0;
+    let autoCategorized = 0;
     for (const row of parseOut.rows) {
+      const match = applyRules(
+        {
+          description: row.description,
+          originalDescription: row.originalDescription,
+          merchant: null,
+        },
+        sortedRules,
+      );
+      const categoryId = match ? match.categoryId : uncategorizedId;
       const result = await db
         .insert(transactions)
         .values({
@@ -64,21 +95,27 @@ export const importRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) 
           originalDescription: row.originalDescription,
           bankTransactionId: row.bankTransactionId,
           fingerprint: row.fingerprint,
-          categoryId: uncategorizedId,
-          autoCategorized: false,
+          categoryId,
+          autoCategorized: match !== null,
+          confidenceScore: match !== null ? 1 : null,
         })
         .onConflictDoNothing({
           target: [transactions.accountId, transactions.fingerprint],
         })
         .returning({ id: transactions.id });
-      if (result.length > 0) inserted += 1;
-      else skipped += 1;
+      if (result.length > 0) {
+        inserted += 1;
+        if (match) autoCategorized += 1;
+      } else {
+        skipped += 1;
+      }
     }
 
     const result: ImportResult = {
       parsed: parseOut.rows.length,
       inserted,
       skipped,
+      autoCategorized,
       errors: parseOut.errors.map((e) => ({ rowIndex: e.rowIndex, message: e.message })),
     };
     return result;

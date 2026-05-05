@@ -90,6 +90,52 @@ export const transactionSchema = z.object({
 });
 export type Transaction = z.infer<typeof transactionSchema>;
 
+export const ruleMatchTypeSchema = z.enum([
+  'merchant_contains',
+  'merchant_equals',
+  'description_contains',
+  'description_regex',
+]);
+export type RuleMatchType = z.infer<typeof ruleMatchTypeSchema>;
+
+export const ruleIdSchema = z.string().uuid();
+
+export const categorizationRuleSchema = z.object({
+  id: ruleIdSchema,
+  householdId: householdIdSchema,
+  matchType: ruleMatchTypeSchema,
+  pattern: z.string().min(1).max(500),
+  caseInsensitive: z.boolean(),
+  categoryId: categoryIdSchema,
+  priority: z.number().int(),
+  enabled: z.boolean(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type CategorizationRule = z.infer<typeof categorizationRuleSchema>;
+
+export const ruleCreateSchema = z.object({
+  matchType: ruleMatchTypeSchema,
+  pattern: z.string().min(1).max(500),
+  caseInsensitive: z.boolean().optional(),
+  categoryId: categoryIdSchema,
+  priority: z.number().int().optional(),
+  enabled: z.boolean().optional(),
+});
+export type RuleCreate = z.infer<typeof ruleCreateSchema>;
+
+export const ruleUpdateSchema = ruleCreateSchema.partial();
+export type RuleUpdate = z.infer<typeof ruleUpdateSchema>;
+
+export const ruleApplyScopeSchema = z.enum(['uncategorized', 'auto_categorized', 'all_unedited']);
+export type RuleApplyScope = z.infer<typeof ruleApplyScopeSchema>;
+
+export const ruleApplyBodySchema = z.object({
+  scope: ruleApplyScopeSchema,
+  accountId: accountIdSchema.optional(),
+});
+export type RuleApplyBody = z.infer<typeof ruleApplyBodySchema>;
+
 export const householdSchema = z.object({
   id: householdIdSchema,
   name: z.string().min(1),

@@ -1,19 +1,28 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  applyRulesNow,
   archiveAccount,
   createAccount,
+  createRule,
+  deleteRule,
   fetchAccounts,
   fetchByCategory,
   fetchCategories,
+  fetchRules,
   fetchTransactions,
   patchTransactionCategory,
   updateAccount,
+  updateRule,
   uploadCsv,
   type Account,
   type AccountCreateBody,
   type AccountType,
   type Category,
+  type Rule,
+  type RuleApplyScope,
+  type RuleCreateBody,
+  type RuleMatchType,
   type Transaction,
 } from './api';
 import { SpendingPie } from './SpendingPie';
@@ -36,7 +45,20 @@ const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'investment', label: 'Investment' },
 ];
 
-type View = 'dashboard' | 'accounts';
+type View = 'dashboard' | 'accounts' | 'rules';
+
+const MATCH_TYPES: { value: RuleMatchType; label: string }[] = [
+  { value: 'merchant_contains', label: 'merchant contains' },
+  { value: 'merchant_equals', label: 'merchant equals' },
+  { value: 'description_contains', label: 'description contains' },
+  { value: 'description_regex', label: 'description regex' },
+];
+
+const APPLY_SCOPES: { value: RuleApplyScope; label: string }[] = [
+  { value: 'uncategorized', label: 'Uncategorized only' },
+  { value: 'auto_categorized', label: 'Previously auto-categorized' },
+  { value: 'all_unedited', label: 'All unedited (uncategorized + auto)' },
+];
 
 export function App() {
   const [view, setView] = useState<View>('dashboard');
@@ -51,9 +73,14 @@ export function App() {
           <TabButton active={view === 'accounts'} onClick={() => setView('accounts')}>
             Accounts
           </TabButton>
+          <TabButton active={view === 'rules'} onClick={() => setView('rules')}>
+            Rules
+          </TabButton>
         </nav>
       </header>
-      {view === 'dashboard' ? <Dashboard /> : <AccountsPage />}
+      {view === 'dashboard' && <Dashboard />}
+      {view === 'accounts' && <AccountsPage />}
+      {view === 'rules' && <RulesPage />}
     </main>
   );
 }
@@ -457,6 +484,322 @@ function AccountRow(props: {
             </button>
           )}
         </div>
+      </td>
+    </tr>
+  );
+}
+
+function RulesPage() {
+  const qc = useQueryClient();
+  const rulesQ = useQuery({ queryKey: ['rules'], queryFn: fetchRules });
+  const catsQ = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
+  const accountsQ = useQuery({ queryKey: ['accounts'], queryFn: () => fetchAccounts(false) });
+  const categoryOptions = useMemo(() => buildCategoryOptions(catsQ.data ?? []), [catsQ.data]);
+
+  const create = useMutation({
+    mutationFn: createRule,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rules'] }),
+  });
+  const update = useMutation({
+    mutationFn: ({ id, ...body }: { id: string } & Partial<RuleCreateBody>) =>
+      updateRule(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rules'] }),
+  });
+  const remove = useMutation({
+    mutationFn: deleteRule,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rules'] }),
+  });
+  const apply = useMutation({
+    mutationFn: (args: { scope: RuleApplyScope; accountId?: string }) =>
+      applyRulesNow(args.scope, args.accountId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['by-category'] });
+    },
+  });
+
+  return (
+    <div className="flex flex-col gap-6">
+      <NewRuleForm
+        categories={categoryOptions}
+        onSubmit={(body) => create.mutate(body)}
+        isPending={create.isPending}
+      />
+      {create.error && (
+        <p className="text-sm text-red-600">{(create.error as Error).message}</p>
+      )}
+
+      <ApplyControls
+        accounts={accountsQ.data ?? []}
+        onApply={(scope, accountId) => {
+          const args: { scope: RuleApplyScope; accountId?: string } = { scope };
+          if (accountId) args.accountId = accountId;
+          apply.mutate(args);
+        }}
+        isPending={apply.isPending}
+        result={apply.data ?? null}
+        error={apply.error as Error | null}
+      />
+
+      {rulesQ.isLoading && <p className="text-zinc-500">loading…</p>}
+      {rulesQ.data && (
+        <RulesTable
+          rows={rulesQ.data}
+          categories={categoryOptions}
+          onUpdate={(id, body) => update.mutate({ id, ...body })}
+          onDelete={(id) => remove.mutate(id)}
+          isPending={update.isPending || remove.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+function NewRuleForm(props: {
+  categories: CategoryOption[];
+  onSubmit: (body: RuleCreateBody) => void;
+  isPending: boolean;
+}) {
+  const [matchType, setMatchType] = useState<RuleMatchType>('description_contains');
+  const [pattern, setPattern] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [priority, setPriority] = useState('0');
+  const [caseInsensitive, setCaseInsensitive] = useState(true);
+
+  return (
+    <form
+      className="flex flex-wrap items-end gap-3 rounded border border-zinc-200 bg-zinc-50 p-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!pattern || !categoryId) return;
+        const body: RuleCreateBody = { matchType, pattern, categoryId, caseInsensitive };
+        const p = parseInt(priority, 10);
+        if (!Number.isNaN(p)) body.priority = p;
+        props.onSubmit(body);
+        setPattern('');
+      }}
+    >
+      <Field label="Match type">
+        <select
+          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          value={matchType}
+          onChange={(e) => setMatchType(e.target.value as RuleMatchType)}
+        >
+          {MATCH_TYPES.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Pattern">
+        <input
+          required
+          className="w-64 rounded border border-zinc-300 px-2 py-1 text-sm"
+          value={pattern}
+          onChange={(e) => setPattern(e.target.value)}
+        />
+      </Field>
+      <Field label="Category">
+        <select
+          required
+          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+        >
+          <option value="">— choose —</option>
+          {props.categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Priority">
+        <input
+          type="number"
+          className="w-20 rounded border border-zinc-300 px-2 py-1 text-sm"
+          value={priority}
+          onChange={(e) => setPriority(e.target.value)}
+        />
+      </Field>
+      <label className="flex items-center gap-1 text-xs text-zinc-700">
+        <input
+          type="checkbox"
+          checked={caseInsensitive}
+          onChange={(e) => setCaseInsensitive(e.target.checked)}
+        />
+        case-insensitive
+      </label>
+      <button
+        type="submit"
+        disabled={props.isPending}
+        className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+      >
+        Add rule
+      </button>
+    </form>
+  );
+}
+
+function ApplyControls(props: {
+  accounts: Account[];
+  onApply: (scope: RuleApplyScope, accountId?: string) => void;
+  isPending: boolean;
+  result: { scanned: number; matched: number; updated: number } | null;
+  error: Error | null;
+}) {
+  const [scope, setScope] = useState<RuleApplyScope>('uncategorized');
+  const [accountId, setAccountId] = useState('');
+
+  return (
+    <div className="flex flex-wrap items-end gap-3 rounded border border-zinc-200 bg-zinc-50 p-3">
+      <Field label="Apply scope">
+        <select
+          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          value={scope}
+          onChange={(e) => setScope(e.target.value as RuleApplyScope)}
+        >
+          {APPLY_SCOPES.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Account">
+        <select
+          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          value={accountId}
+          onChange={(e) => setAccountId(e.target.value)}
+        >
+          <option value="">All accounts</option>
+          {props.accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <button
+        type="button"
+        disabled={props.isPending}
+        onClick={() => props.onApply(scope, accountId || undefined)}
+        className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+      >
+        {props.isPending ? 'Applying…' : 'Apply rules'}
+      </button>
+      {props.result && (
+        <span className="text-sm text-emerald-700">
+          scanned {props.result.scanned} · matched {props.result.matched} · updated{' '}
+          {props.result.updated}
+        </span>
+      )}
+      {props.error && <span className="text-sm text-red-600">{props.error.message}</span>}
+    </div>
+  );
+}
+
+function RulesTable(props: {
+  rows: Rule[];
+  categories: CategoryOption[];
+  onUpdate: (id: string, body: Partial<RuleCreateBody>) => void;
+  onDelete: (id: string) => void;
+  isPending: boolean;
+}) {
+  if (props.rows.length === 0) {
+    return <p className="text-zinc-500">No rules yet. Add one above.</p>;
+  }
+  return (
+    <div className="overflow-x-auto rounded border border-zinc-200">
+      <table className="w-full text-sm">
+        <thead className="bg-zinc-50 text-left text-zinc-600">
+          <tr>
+            <th className="px-3 py-2 font-medium">Match</th>
+            <th className="px-3 py-2 font-medium">Pattern</th>
+            <th className="px-3 py-2 font-medium">Category</th>
+            <th className="px-3 py-2 font-medium">Priority</th>
+            <th className="px-3 py-2 font-medium">Enabled</th>
+            <th className="px-3 py-2 font-medium" />
+          </tr>
+        </thead>
+        <tbody>
+          {props.rows.map((r) => (
+            <RuleRow
+              key={r.id}
+              rule={r}
+              categories={props.categories}
+              onUpdate={props.onUpdate}
+              onDelete={props.onDelete}
+              isPending={props.isPending}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RuleRow(props: {
+  rule: Rule;
+  categories: CategoryOption[];
+  onUpdate: (id: string, body: Partial<RuleCreateBody>) => void;
+  onDelete: (id: string) => void;
+  isPending: boolean;
+}) {
+  return (
+    <tr className="border-t border-zinc-100">
+      <td className="px-3 py-2 text-zinc-600">
+        {MATCH_TYPES.find((m) => m.value === props.rule.matchType)?.label ?? props.rule.matchType}
+      </td>
+      <td className="px-3 py-2 font-mono text-xs">{props.rule.pattern}</td>
+      <td className="px-3 py-2">
+        <select
+          className="rounded border border-zinc-300 px-2 py-1"
+          value={props.rule.categoryId}
+          disabled={props.isPending}
+          onChange={(e) => props.onUpdate(props.rule.id, { categoryId: e.target.value })}
+        >
+          {props.categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="px-3 py-2">
+        <input
+          type="number"
+          className="w-16 rounded border border-zinc-300 px-2 py-1"
+          defaultValue={props.rule.priority}
+          disabled={props.isPending}
+          onBlur={(e) => {
+            const n = parseInt(e.target.value, 10);
+            if (!Number.isNaN(n) && n !== props.rule.priority) {
+              props.onUpdate(props.rule.id, { priority: n });
+            }
+          }}
+        />
+      </td>
+      <td className="px-3 py-2">
+        <input
+          type="checkbox"
+          checked={props.rule.enabled}
+          disabled={props.isPending}
+          onChange={(e) => props.onUpdate(props.rule.id, { enabled: e.target.checked })}
+        />
+      </td>
+      <td className="px-3 py-2">
+        <button
+          type="button"
+          disabled={props.isPending}
+          onClick={() => {
+            if (confirm('Delete this rule?')) props.onDelete(props.rule.id);
+          }}
+          className="rounded bg-zinc-200 px-2 py-1 text-xs text-zinc-800 disabled:opacity-40"
+        >
+          Delete
+        </button>
       </td>
     </tr>
   );
