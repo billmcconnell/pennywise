@@ -26,7 +26,7 @@ Use 'pdftotext', not the 'Read' tool. Use 'Read' only when the user directly ask
 
 ## Project Status
 
-Phase 0 scaffold done (commit `a0918d4`, 2026-04-30). Phase 1 MVP next per PRD §8.
+Phase 1 MVP shipped 2026-05-04 (tag `v0.1.0`, commit `ce3437a`). CSV upload → manual categorize → pie chart works end-to-end. Auth.js magic-link deferred — dev resolver hard-codes the seeded household. Phase 2 next per PRD §8 (multi-format ingestion, rules engine for auto-categorization, multi-account, full dashboard).
 
 - `personal_finance_tracker_prd.md` — canonical spec (scope, features, data model, phasing).
 - `Budget Project input files/*.csv` — 12 months Amex statements (Dec 2024 → Dec 2025), reference/test fixtures.

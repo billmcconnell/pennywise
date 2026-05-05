@@ -41,4 +41,4 @@ API: http://localhost:3000  ·  health: http://localhost:3000/healthz
 
 ## Phase status
 
-Phase 0 — scaffold (current). Phase 1 MVP scope per PRD §8.
+Phase 1 MVP shipped (`v0.1.0`): CSV upload, manual categorization, pie chart. Auth deferred (dev resolver). Phase 2 next per PRD §8.
