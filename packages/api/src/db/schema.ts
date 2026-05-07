@@ -129,6 +129,28 @@ export const transactions = pgTable(
   ],
 );
 
+export const savingsGoals = pgTable(
+  'savings_goals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    targetAmount: numeric('target_amount', { precision: 14, scale: 2 }).notNull(),
+    currentAmount: numeric('current_amount', { precision: 14, scale: 2 }).notNull().default('0'),
+    targetDate: date('target_date'),
+    notes: text('notes'),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index('goals_household_idx').on(t.householdId)],
+);
+
 export const recurringBills = pgTable(
   'recurring_bills',
   {

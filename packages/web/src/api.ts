@@ -126,6 +126,50 @@ export interface CategoryTrendPoint {
   total: string;
 }
 
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  targetAmount: string;
+  currentAmount: string;
+  targetDate: string | null;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+  // computed by server
+  pct: number;
+  remaining: string;
+  daysRemaining: number | null;
+  onTrack: boolean | null;
+}
+
+export interface GoalCreateBody {
+  name: string;
+  targetAmount: string;
+  targetDate?: string | null;
+  notes?: string | null;
+}
+
+export function fetchGoals(): Promise<SavingsGoal[]> {
+  return jget<SavingsGoal[]>('/api/goals');
+}
+
+export function createGoal(body: GoalCreateBody): Promise<SavingsGoal> {
+  return jsend<SavingsGoal>('/api/goals', 'POST', body);
+}
+
+export function updateGoal(id: string, body: Partial<GoalCreateBody>): Promise<SavingsGoal> {
+  return jsend<SavingsGoal>(`/api/goals/${id}`, 'PATCH', body);
+}
+
+export function contributeToGoal(id: string, amount: string): Promise<SavingsGoal> {
+  return jsend<SavingsGoal>(`/api/goals/${id}/contribute`, 'POST', { amount });
+}
+
+export async function deleteGoal(id: string): Promise<void> {
+  const res = await fetch(`/api/goals/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`delete ${res.status}`);
+}
+
 export interface RecurringBill {
   id: string;
   name: string;

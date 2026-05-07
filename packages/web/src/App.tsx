@@ -10,6 +10,7 @@ import {
   fetchAccounts,
   fetchBudgets,
   fetchBudgetStatus,
+  fetchGoals,
   fetchByCategory,
   fetchByMonth,
   fetchCategories,
@@ -37,6 +38,8 @@ import {
 } from './api';
 import { BudgetStatusPanel } from './BudgetStatus';
 import { BillsPage } from './BillsPage';
+import { GoalsPage } from './GoalsPage';
+import { GoalsPanel } from './GoalsPanel';
 import { CategoryTrends } from './CategoryTrends';
 import { InsightCards } from './InsightCards';
 import { SpendingPie } from './SpendingPie';
@@ -63,7 +66,7 @@ const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'investment', label: 'Investment' },
 ];
 
-type View = 'dashboard' | 'accounts' | 'budgets' | 'bills' | 'rules';
+type View = 'dashboard' | 'accounts' | 'budgets' | 'goals' | 'bills' | 'rules';
 
 const MATCH_TYPES: { value: RuleMatchType; label: string }[] = [
   { value: 'merchant_contains', label: 'merchant contains' },
@@ -106,6 +109,9 @@ export function App() {
             <TabButton active={view === 'budgets'} onClick={() => setView('budgets')}>
               Budgets
             </TabButton>
+            <TabButton active={view === 'goals'} onClick={() => setView('goals')}>
+              Goals
+            </TabButton>
             <TabButton active={view === 'bills'} onClick={() => setView('bills')}>
               Bills
             </TabButton>
@@ -117,6 +123,7 @@ export function App() {
         {view === 'dashboard' && <Dashboard />}
         {view === 'accounts' && <AccountsPage />}
         {view === 'budgets' && <BudgetsPage />}
+        {view === 'goals' && <GoalsPage />}
         {view === 'bills' && <BillsPage />}
         {view === 'rules' && <RulesPage />}
       </main>
@@ -125,6 +132,7 @@ export function App() {
         <BottomNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} label="Dashboard" />
         <BottomNavButton active={view === 'accounts'} onClick={() => setView('accounts')} label="Accounts" />
         <BottomNavButton active={view === 'budgets'} onClick={() => setView('budgets')} label="Budgets" />
+        <BottomNavButton active={view === 'goals'} onClick={() => setView('goals')} label="Goals" />
         <BottomNavButton active={view === 'bills'} onClick={() => setView('bills')} label="Bills" />
         <BottomNavButton active={view === 'rules'} onClick={() => setView('rules')} label="Rules" />
       </nav>
@@ -237,6 +245,12 @@ function Dashboard() {
     staleTime: 30 * 1000,
   });
 
+  const goalsQ = useQuery({
+    queryKey: ['goals'],
+    queryFn: fetchGoals,
+    staleTime: 30 * 1000,
+  });
+
   const patch = useMutation({
     mutationFn: ({ id, categoryId }: { id: string; categoryId: string | null }) =>
       patchTransactionCategory(id, categoryId),
@@ -322,6 +336,10 @@ function Dashboard() {
 
       {budgetStatusQ.data && budgetStatusQ.data.length > 0 && (
         <BudgetStatusPanel data={budgetStatusQ.data} />
+      )}
+
+      {goalsQ.data && goalsQ.data.length > 0 && (
+        <GoalsPanel goals={goalsQ.data} />
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
