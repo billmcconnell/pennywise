@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { Category, CategoryTotal } from './api';
 
@@ -13,6 +13,14 @@ const COLORS: Record<string, string> = {
   uncategorized: '#71717a',
 };
 
+const SUB_COLORS = [
+  '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa',
+  '#fb923c', '#38bdf8', '#4ade80', '#e879f9', '#94a3b8',
+];
+
+const fmt = (n: number) =>
+  n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
 interface PieSlice {
   slug: string;
   name: string;
@@ -20,10 +28,53 @@ interface PieSlice {
 }
 
 export function SpendingPie(props: { totals: CategoryTotal[]; categories: Category[] }) {
-  const slices = useMemo(
-    () => rollUpToTopLevel(props.totals, props.categories),
-    [props.totals, props.categories],
+  const [drillSlug, setDrillSlug] = useState<string | null>(null);
+
+  const byId = useMemo(
+    () => new Map(props.categories.map((c) => [c.id, c])),
+    [props.categories],
   );
+
+  const topSlices = useMemo(
+    () => rollUpToTopLevel(props.totals, byId),
+    [props.totals, byId],
+  );
+
+  const { subSlices, drillName } = useMemo(() => {
+    if (!drillSlug) return { subSlices: null, drillName: null };
+    const parent = props.categories.find((c) => c.slug === drillSlug && !c.parentId);
+    if (!parent) return { subSlices: null, drillName: null };
+
+    const buckets = new Map<string, PieSlice>();
+    for (const row of props.totals) {
+      const amount = Number(row.total);
+      if (!isFinite(amount) || amount <= 0 || !row.categoryId) continue;
+      const cat = byId.get(row.categoryId);
+      if (!cat) continue;
+
+      let key: string;
+      let label: string;
+      if (cat.id === parent.id) {
+        key = '__direct__';
+        label = `${parent.name} (general)`;
+      } else if (cat.parentId === parent.id) {
+        key = cat.slug;
+        label = cat.name;
+      } else {
+        continue;
+      }
+
+      const ex = buckets.get(key);
+      if (ex) ex.total += amount;
+      else buckets.set(key, { slug: key, name: label, total: amount });
+    }
+
+    const slices = [...buckets.values()].sort((a, b) => b.total - a.total);
+    return { subSlices: slices.length > 0 ? slices : null, drillName: parent.name };
+  }, [drillSlug, props.totals, props.categories, byId]);
+
+  const isDrilled = drillSlug !== null && subSlices !== null;
+  const slices = isDrilled ? subSlices! : topSlices;
 
   if (slices.length === 0) {
     return (
@@ -38,10 +89,21 @@ export function SpendingPie(props: { totals: CategoryTotal[]; categories: Catego
   return (
     <div className="rounded border border-zinc-200 p-4">
       <div className="mb-2 flex items-baseline justify-between">
-        <h2 className="text-lg font-medium">Spending by category</h2>
-        <span className="text-sm tabular-nums text-zinc-600">
-          {grandTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-        </span>
+        <div className="flex items-center gap-2">
+          {isDrilled && (
+            <button
+              type="button"
+              onClick={() => setDrillSlug(null)}
+              className="text-sm text-zinc-400 hover:text-zinc-700"
+            >
+              ← All
+            </button>
+          )}
+          <h2 className="text-lg font-medium">
+            {isDrilled ? drillName : 'Spending by category'}
+          </h2>
+        </div>
+        <span className="text-sm tabular-nums text-zinc-600">{fmt(grandTotal)}</span>
       </div>
       <div className="h-[240px] w-full sm:h-[280px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -53,24 +115,37 @@ export function SpendingPie(props: { totals: CategoryTotal[]; categories: Catego
               innerRadius={60}
               outerRadius={100}
               paddingAngle={1}
+              onClick={(data: unknown) => {
+                if (isDrilled) return;
+                const slug = (data as PieSlice).slug;
+                if (slug && slug !== 'uncategorized') setDrillSlug(slug);
+              }}
+              cursor={!isDrilled ? 'pointer' : 'default'}
             >
-              {slices.map((s) => (
-                <Cell key={s.slug} fill={COLORS[s.slug] ?? '#a1a1aa'} />
+              {slices.map((s, i) => (
+                <Cell
+                  key={s.slug}
+                  fill={
+                    isDrilled
+                      ? (SUB_COLORS[i % SUB_COLORS.length] ?? '#a1a1aa')
+                      : (COLORS[s.slug] ?? '#a1a1aa')
+                  }
+                />
               ))}
             </Pie>
-            <Tooltip formatter={(v: number) =>
-              v.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-            } />
+            <Tooltip formatter={(v: number) => fmt(v)} />
             <Legend />
           </PieChart>
         </ResponsiveContainer>
       </div>
+      {!isDrilled && (
+        <p className="mt-1 text-xs text-zinc-400">Click a slice to drill into subcategories</p>
+      )}
     </div>
   );
 }
 
-function rollUpToTopLevel(totals: CategoryTotal[], cats: Category[]): PieSlice[] {
-  const byId = new Map(cats.map((c) => [c.id, c]));
+function rollUpToTopLevel(totals: CategoryTotal[], byId: Map<string, Category>): PieSlice[] {
   const buckets = new Map<string, PieSlice>();
 
   for (const row of totals) {
@@ -85,7 +160,7 @@ function rollUpToTopLevel(totals: CategoryTotal[], cats: Category[]): PieSlice[]
     } else {
       const cat = byId.get(row.categoryId);
       if (!cat) continue;
-      const top = cat.parentId ? byId.get(cat.parentId) ?? cat : cat;
+      const top = cat.parentId ? (byId.get(cat.parentId) ?? cat) : cat;
       topSlug = top.slug;
       topName = top.name;
     }
