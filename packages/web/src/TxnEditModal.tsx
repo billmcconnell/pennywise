@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createRule,
+  fetchTransactionHistory,
   patchTransaction,
   type Transaction,
   type TransactionUpdateBody,
@@ -24,6 +25,36 @@ export function TxnEditModal(props: {
   const [tagsInput, setTagsInput] = useState(props.txn.tags.join(', '));
   const [categoryId, setCategoryId] = useState(props.txn.categoryId ?? '');
 
+  const historyQ = useQuery({
+    queryKey: ['txn-history', props.txn.id],
+    queryFn: () => fetchTransactionHistory(props.txn.id),
+  });
+
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ['transactions'] });
+    qc.invalidateQueries({ queryKey: ['by-category'] });
+    qc.invalidateQueries({ queryKey: ['summary'] });
+    qc.invalidateQueries({ queryKey: ['by-month'] });
+    qc.invalidateQueries({ queryKey: ['top-merchants'] });
+    qc.invalidateQueries({ queryKey: ['insights'] });
+    qc.invalidateQueries({ queryKey: ['txn-history', props.txn.id] });
+  };
+
+  const revert = useMutation({
+    mutationFn: () =>
+      patchTransaction(props.txn.id, {
+        description: props.txn.originalDescription,
+        merchant: null,
+        notes: null,
+        tags: [],
+        categoryId: null,
+      }),
+    onSuccess: () => {
+      invalidateAll();
+      props.onClose();
+    },
+  });
+
   const save = useMutation({
     mutationFn: async () => {
       const body: TransactionUpdateBody = {};
@@ -43,11 +74,7 @@ export function TxnEditModal(props: {
       return patchTransaction(props.txn.id, body);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['transactions'] });
-      qc.invalidateQueries({ queryKey: ['by-category'] });
-      qc.invalidateQueries({ queryKey: ['summary'] });
-      qc.invalidateQueries({ queryKey: ['by-month'] });
-      qc.invalidateQueries({ queryKey: ['top-merchants'] });
+      invalidateAll();
       props.onClose();
     },
   });
@@ -134,24 +161,57 @@ export function TxnEditModal(props: {
         {save.error && (
           <p className="mt-3 text-sm text-red-600">{(save.error as Error).message}</p>
         )}
+        {revert.error && (
+          <p className="mt-3 text-sm text-red-600">{(revert.error as Error).message}</p>
+        )}
         {saveAsRule.error && (
           <p className="mt-3 text-sm text-red-600">{(saveAsRule.error as Error).message}</p>
         )}
         {saveAsRule.data && (
           <p className="mt-3 text-sm text-emerald-700">
-            Rule created. Use “Apply rules” on Rules tab to backfill.
+            Rule created. Use "Apply rules" on Rules tab to backfill.
           </p>
         )}
 
+        {historyQ.data && historyQ.data.length > 0 && (
+          <div className="mt-4 border-t border-zinc-100 pt-3">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">
+              Edit history
+            </p>
+            <ul className="max-h-32 overflow-y-auto space-y-1">
+              {historyQ.data.map((e) => (
+                <li key={e.id} className="text-xs text-zinc-500">
+                  <span className="font-medium capitalize text-zinc-700">{e.field}</span>
+                  {': '}
+                  <span className="line-through">{e.oldValue ?? '—'}</span>
+                  {' → '}
+                  <span>{e.newValue ?? '—'}</span>
+                  <span className="ml-2 text-zinc-400">{fmtRelative(e.editedAt)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <footer className="mt-4 flex flex-wrap items-center justify-between gap-2">
-          <button
-            type="button"
-            disabled={saveAsRule.isPending || !categoryId || !description.trim()}
-            onClick={() => saveAsRule.mutate()}
-            className="rounded bg-zinc-200 px-3 py-1 text-sm text-zinc-800 disabled:opacity-40"
-          >
-            {saveAsRule.isPending ? 'Saving rule…' : 'Save as rule'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={saveAsRule.isPending || !categoryId || !description.trim()}
+              onClick={() => saveAsRule.mutate()}
+              className="rounded bg-zinc-200 px-3 py-1 text-sm text-zinc-800 disabled:opacity-40"
+            >
+              {saveAsRule.isPending ? 'Saving rule…' : 'Save as rule'}
+            </button>
+            <button
+              type="button"
+              disabled={revert.isPending}
+              onClick={() => revert.mutate()}
+              className="rounded border border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+            >
+              {revert.isPending ? 'Reverting…' : 'Revert to original'}
+            </button>
+          </div>
           <div className="flex gap-2">
             <button
               type="button"
@@ -186,6 +246,16 @@ function Field(props: { label: string; children: React.ReactNode }) {
 
 function fmtMoney(s: string): string {
   return Number(s).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+}
+
+function fmtRelative(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 function arraysEqual(a: string[], b: string[]): boolean {

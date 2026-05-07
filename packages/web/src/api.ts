@@ -95,6 +95,14 @@ export interface CategoryTotal {
   count: number;
 }
 
+export interface TransactionEdit {
+  id: string;
+  field: string;
+  oldValue: string | null;
+  newValue: string | null;
+  editedAt: string;
+}
+
 export interface InsightsData {
   uncategorizedCount: number;
   topCategory: {
@@ -219,6 +227,10 @@ export function fetchByMonth(
   accountId?: string,
 ): Promise<MonthlyPoint[]> {
   return jget<MonthlyPoint[]>(`/api/transactions/by-month${buildQuery({ from, to, accountId })}`);
+}
+
+export function fetchTransactionHistory(id: string): Promise<TransactionEdit[]> {
+  return jget<TransactionEdit[]>(`/api/transactions/${id}/history`);
 }
 
 export function fetchInsights(month?: string, accountId?: string): Promise<InsightsData> {

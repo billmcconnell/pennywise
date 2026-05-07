@@ -128,6 +128,27 @@ export const transactions = pgTable(
   ],
 );
 
+export const transactionEdits = pgTable(
+  'transaction_edits',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    transactionId: uuid('transaction_id')
+      .notNull()
+      .references(() => transactions.id, { onDelete: 'cascade' }),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    field: text('field').notNull(),
+    oldValue: text('old_value'),
+    newValue: text('new_value'),
+    editedAt: timestamp('edited_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('txn_edits_transaction_idx').on(t.transactionId),
+    index('txn_edits_household_idx').on(t.householdId),
+  ],
+);
+
 export const categorizationRules = pgTable(
   'categorization_rules',
   {

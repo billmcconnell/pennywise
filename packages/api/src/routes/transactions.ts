@@ -4,7 +4,7 @@ import { and, desc, eq, gte, ilike, isNull, lt, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { transactionUpdateSchema } from '@pennywise/shared';
 import type { Db } from '../db/client.js';
-import { accounts, categories, transactions } from '../db/schema.js';
+import { accounts, categories, transactionEdits, transactions } from '../db/schema.js';
 
 const listQuerySchema = z.object({
   month: z
@@ -115,9 +115,27 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
       return reply.code(400).send({ error: 'bad body', detail: body.error.flatten() });
     }
 
+    // Fetch current state for diff recording
+    const currentRows = await db
+      .select({
+        description: transactions.description,
+        merchant: transactions.merchant,
+        notes: transactions.notes,
+        tags: transactions.tags,
+        categoryId: transactions.categoryId,
+        categoryName: categories.name,
+      })
+      .from(transactions)
+      .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(and(eq(transactions.id, req.params.id), eq(transactions.householdId, household.id)))
+      .limit(1);
+
+    if (currentRows.length === 0) return reply.code(404).send({ error: 'not found' });
+    const current = currentRows[0]!;
+
     if (body.data.categoryId) {
       const cat = await db
-        .select({ id: categories.id })
+        .select({ id: categories.id, name: categories.name })
         .from(categories)
         .where(
           and(eq(categories.id, body.data.categoryId), eq(categories.householdId, household.id)),
@@ -127,11 +145,45 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     }
 
     const patch: Record<string, unknown> = { autoCategorized: false };
-    if (body.data.description !== undefined) patch.description = body.data.description;
-    if (body.data.merchant !== undefined) patch.merchant = body.data.merchant;
-    if (body.data.notes !== undefined) patch.notes = body.data.notes;
-    if (body.data.tags !== undefined) patch.tags = body.data.tags;
-    if (body.data.categoryId !== undefined) patch.categoryId = body.data.categoryId;
+    const diffs: { field: string; oldValue: string | null; newValue: string | null }[] = [];
+
+    if (body.data.description !== undefined && body.data.description !== current.description) {
+      patch.description = body.data.description;
+      diffs.push({ field: 'description', oldValue: current.description, newValue: body.data.description });
+    }
+    if (body.data.merchant !== undefined && body.data.merchant !== current.merchant) {
+      patch.merchant = body.data.merchant;
+      diffs.push({ field: 'merchant', oldValue: current.merchant, newValue: body.data.merchant ?? null });
+    }
+    if (body.data.notes !== undefined && body.data.notes !== current.notes) {
+      patch.notes = body.data.notes;
+      diffs.push({ field: 'notes', oldValue: current.notes, newValue: body.data.notes ?? null });
+    }
+    if (body.data.tags !== undefined) {
+      const oldStr = [...current.tags].sort().join('\0');
+      const newStr = [...body.data.tags].sort().join('\0');
+      if (oldStr !== newStr) {
+        patch.tags = body.data.tags;
+        diffs.push({
+          field: 'tags',
+          oldValue: current.tags.join(', ') || null,
+          newValue: body.data.tags.join(', ') || null,
+        });
+      }
+    }
+    if (body.data.categoryId !== undefined && body.data.categoryId !== current.categoryId) {
+      patch.categoryId = body.data.categoryId;
+      let newCatName: string | null = null;
+      if (body.data.categoryId) {
+        const row = await db
+          .select({ name: categories.name })
+          .from(categories)
+          .where(eq(categories.id, body.data.categoryId))
+          .limit(1);
+        newCatName = row[0]?.name ?? null;
+      }
+      diffs.push({ field: 'category', oldValue: current.categoryName, newValue: newCatName });
+    }
 
     const updated = await db
       .update(transactions)
@@ -140,7 +192,47 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
       .returning();
 
     if (updated.length === 0) return reply.code(404).send({ error: 'not found' });
+
+    if (diffs.length > 0) {
+      await db.insert(transactionEdits).values(
+        diffs.map((d) => ({
+          transactionId: req.params.id,
+          householdId: household.id,
+          field: d.field,
+          oldValue: d.oldValue,
+          newValue: d.newValue,
+        })),
+      );
+    }
+
     return updated[0];
+  });
+
+  app.get<{ Params: { id: string } }>('/transactions/:id/history', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const idCheck = z.string().uuid().safeParse(req.params.id);
+    if (!idCheck.success) return reply.code(400).send({ error: 'bad id' });
+
+    const rows = await db
+      .select({
+        id: transactionEdits.id,
+        field: transactionEdits.field,
+        oldValue: transactionEdits.oldValue,
+        newValue: transactionEdits.newValue,
+        editedAt: transactionEdits.editedAt,
+      })
+      .from(transactionEdits)
+      .where(
+        and(
+          eq(transactionEdits.transactionId, req.params.id),
+          eq(transactionEdits.householdId, household.id),
+        ),
+      )
+      .orderBy(desc(transactionEdits.editedAt));
+
+    return rows;
   });
 
   app.get('/transactions/by-category', async (req, reply) => {
