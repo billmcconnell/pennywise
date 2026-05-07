@@ -12,6 +12,7 @@ const listQuerySchema = z.object({
   accountId: z.string().uuid().optional(),
   q: z.string().min(1).max(200).optional(),
   tag: z.string().min(1).max(100).optional(),
+  categoryId: z.string().min(1).max(50).optional(),
 });
 
 function monthBounds(month: string): { start: string; end: string } {
@@ -40,7 +41,7 @@ export const exportRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) 
     if (!parsed.success) {
       return reply.code(400).send({ error: 'bad query', detail: parsed.error.flatten() });
     }
-    const { month, accountId, q, tag } = parsed.data;
+    const { month, accountId, q, tag, categoryId } = parsed.data;
 
     const conditions = [eq(transactions.householdId, household.id)];
     if (accountId) conditions.push(eq(transactions.accountId, accountId));
@@ -60,6 +61,11 @@ export const exportRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) 
     }
     if (tag) {
       conditions.push(sql`${tag} = ANY(${transactions.tags})`);
+    }
+    if (categoryId === 'none') {
+      conditions.push(isNull(transactions.categoryId));
+    } else if (categoryId) {
+      conditions.push(eq(transactions.categoryId, categoryId));
     }
 
     const rows = await db

@@ -16,6 +16,7 @@ const listQuerySchema = z.object({
   accountId: z.string().uuid().optional(),
   q: z.string().min(1).max(200).optional(),
   tag: z.string().min(1).max(100).optional(),
+  categoryId: z.string().min(1).max(50).optional(),
   limit: z.coerce.number().int().min(1).max(500).optional(),
   offset: z.coerce.number().int().min(0).optional(),
 });
@@ -63,7 +64,7 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     if (!parsed.success) {
       return reply.code(400).send({ error: 'bad query', detail: parsed.error.flatten() });
     }
-    const { month, accountId, q, tag, limit, offset } = parsed.data;
+    const { month, accountId, q, tag, categoryId, limit, offset } = parsed.data;
     const pageSize = limit ?? PAGE_SIZE;
     const pageOffset = offset ?? 0;
 
@@ -85,6 +86,11 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     }
     if (tag) {
       conditions.push(sql`${tag} = ANY(${transactions.tags})`);
+    }
+    if (categoryId === 'none') {
+      conditions.push(isNull(transactions.categoryId));
+    } else if (categoryId) {
+      conditions.push(eq(transactions.categoryId, categoryId));
     }
 
     const where = and(...conditions);

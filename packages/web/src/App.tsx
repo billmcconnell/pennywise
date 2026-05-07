@@ -179,6 +179,7 @@ function Dashboard() {
   const [searchInput, setSearchInput] = useState<string>('');
   const search = useDebounce(searchInput, 300);
   const [tag, setTag] = useState<string>('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const qc = useQueryClient();
 
@@ -226,9 +227,9 @@ function Dashboard() {
   }, [settingsQ.data, availableMonthsQ.data]);
 
   const txnsQ = useInfiniteQuery({
-    queryKey: ['transactions', month, accountId, search, tag],
+    queryKey: ['transactions', month, accountId, search, tag, categoryFilter],
     queryFn: ({ pageParam }) =>
-      fetchTransactions(month, accountId || undefined, search || undefined, pageParam, tag || undefined),
+      fetchTransactions(month, accountId || undefined, search || undefined, pageParam, tag || undefined, categoryFilter || undefined),
     initialPageParam: 0,
     getNextPageParam: (lastPage, _pages, lastPageParam) =>
       lastPage.hasMore ? lastPageParam + PAGE_SIZE : undefined,
@@ -317,8 +318,9 @@ function Dashboard() {
     if (accountId) p.set('accountId', accountId);
     if (search) p.set('q', search);
     if (tag) p.set('tag', tag);
+    if (categoryFilter) p.set('categoryId', categoryFilter);
     return `/api/exports/transactions.csv?${p.toString()}`;
-  }, [month, accountId, search, tag]);
+  }, [month, accountId, search, tag, categoryFilter]);
 
   return (
     <>
@@ -379,6 +381,24 @@ function Dashboard() {
             </select>
           </label>
         )}
+        <label className="text-sm text-zinc-600">
+          Category:{' '}
+          <select
+            className="rounded border border-zinc-300 px-2 py-1"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="">All categories</option>
+            <option value="none">Uncategorized</option>
+            {(cats.data ?? [])
+              .filter((c) => c.parentId === null)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+          </select>
+        </label>
         <div className="ml-auto flex gap-2">
           <a
             href={csvHref}

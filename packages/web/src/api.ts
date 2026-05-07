@@ -298,6 +298,7 @@ export function fetchTransactions(
   q?: string,
   offset?: number,
   tag?: string,
+  categoryId?: string,
 ): Promise<TransactionPage> {
   return jget<TransactionPage>(
     `/api/transactions${buildQuery({
@@ -305,6 +306,7 @@ export function fetchTransactions(
       accountId,
       q,
       tag,
+      categoryId,
       offset: offset ? String(offset) : undefined,
     })}`,
   );
