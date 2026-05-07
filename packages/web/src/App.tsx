@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   applyRulesNow,
   archiveAccount,
@@ -71,6 +71,17 @@ const APPLY_SCOPES: { value: RuleApplyScope; label: string }[] = [
   { value: 'all_unedited', label: 'All unedited (uncategorized + auto)' },
 ];
 
+const PAGE_SIZE = 50;
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
+
 export function App() {
   const [view, setView] = useState<View>('dashboard');
   return (
@@ -133,47 +144,74 @@ function BottomNavButton(props: { active: boolean; onClick: () => void; label: s
 function Dashboard() {
   const [month, setMonth] = useState<string>('2025-06');
   const [accountId, setAccountId] = useState<string>('');
-  const [search, setSearch] = useState<string>('');
+  const [searchInput, setSearchInput] = useState<string>('');
+  const search = useDebounce(searchInput, 300);
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const qc = useQueryClient();
 
-  const accountsQ = useQuery({ queryKey: ['accounts'], queryFn: () => fetchAccounts(false) });
-
-  const txns = useQuery({
-    queryKey: ['transactions', month, accountId, search],
-    queryFn: () => fetchTransactions(month, accountId || undefined, search || undefined),
+  const accountsQ = useQuery({
+    queryKey: ['accounts'],
+    queryFn: () => fetchAccounts(false),
+    staleTime: 2 * 60 * 1000,
   });
 
-  const cats = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
+  const txnsQ = useInfiniteQuery({
+    queryKey: ['transactions', month, accountId, search],
+    queryFn: ({ pageParam }) =>
+      fetchTransactions(month, accountId || undefined, search || undefined, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, _pages, lastPageParam) =>
+      lastPage.hasMore ? lastPageParam + PAGE_SIZE : undefined,
+    staleTime: 30 * 1000,
+  });
+
+  const allTxns = useMemo(
+    () => txnsQ.data?.pages.flatMap((p) => p.rows) ?? [],
+    [txnsQ.data],
+  );
+  const txnTotal = txnsQ.data?.pages[0]?.total ?? 0;
+  const hasMore = txnsQ.data?.pages.at(-1)?.hasMore ?? false;
+
+  const cats = useQuery({
+    queryKey: ['categories'],
+    queryFn: fetchCategories,
+    staleTime: 10 * 60 * 1000,
+  });
 
   const byCat = useQuery({
     queryKey: ['by-category', month, accountId],
     queryFn: () => fetchByCategory(month, accountId || undefined),
+    staleTime: 30 * 1000,
   });
 
   const summaryQ = useQuery({
     queryKey: ['summary', month, accountId],
     queryFn: () => fetchSummary(month, accountId || undefined),
+    staleTime: 30 * 1000,
   });
 
   const byMonthQ = useQuery({
     queryKey: ['by-month', accountId, month],
     queryFn: () => fetchByMonth(undefined, month, accountId || undefined),
+    staleTime: 30 * 1000,
   });
 
   const topMerchantsQ = useQuery({
     queryKey: ['top-merchants', month, accountId],
     queryFn: () => fetchTopMerchants(month, accountId || undefined, 10),
+    staleTime: 30 * 1000,
   });
 
   const categoryTrendsQ = useQuery({
     queryKey: ['category-trends', accountId, month],
     queryFn: () => fetchCategoryTrends(undefined, month, accountId || undefined),
+    staleTime: 30 * 1000,
   });
 
   const insightsQ = useQuery({
     queryKey: ['insights', month, accountId],
     queryFn: () => fetchInsights(month, accountId || undefined),
+    staleTime: 30 * 1000,
   });
 
   const patch = useMutation({
@@ -233,8 +271,8 @@ function Dashboard() {
             type="search"
             placeholder="description / merchant"
             className="rounded border border-zinc-300 px-2 py-1"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
         </label>
         <div className="ml-auto flex gap-2">
@@ -268,16 +306,36 @@ function Dashboard() {
 
       {categoryTrendsQ.data && <CategoryTrends data={categoryTrendsQ.data} />}
 
-      {txns.isLoading && <p className="text-zinc-500">loading…</p>}
-      {txns.error && <p className="text-red-600">error: {(txns.error as Error).message}</p>}
-      {txns.data && (
-        <TransactionTable
-          rows={txns.data}
-          categories={categoryOptions}
-          onChange={(id, categoryId) => patch.mutate({ id, categoryId })}
-          onEdit={(t) => setEditingTxn(t)}
-          isPending={patch.isPending}
-        />
+      {txnsQ.isLoading && <p className="text-zinc-500">loading…</p>}
+      {txnsQ.error && <p className="text-red-600">error: {(txnsQ.error as Error).message}</p>}
+      {allTxns.length > 0 && (
+        <>
+          <div className="flex items-center justify-between text-xs text-zinc-500">
+            <span>
+              Showing {allTxns.length} of {txnTotal} transactions
+            </span>
+          </div>
+          <TransactionTable
+            rows={allTxns}
+            categories={categoryOptions}
+            onChange={(id, categoryId) => patch.mutate({ id, categoryId })}
+            onEdit={(t) => setEditingTxn(t)}
+            isPending={patch.isPending}
+          />
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => txnsQ.fetchNextPage()}
+              disabled={txnsQ.isFetchingNextPage}
+              className="w-full rounded border border-zinc-300 py-2 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
+            >
+              {txnsQ.isFetchingNextPage ? 'Loading…' : `Load more (${txnTotal - allTxns.length} remaining)`}
+            </button>
+          )}
+        </>
+      )}
+      {!txnsQ.isLoading && allTxns.length === 0 && (
+        <p className="text-zinc-500">No transactions match.</p>
       )}
       {editingTxn && (
         <TxnEditModal
@@ -366,6 +424,7 @@ function AccountsPage() {
   const accountsQ = useQuery({
     queryKey: ['accounts', 'all'],
     queryFn: () => fetchAccounts(true),
+    staleTime: 2 * 60 * 1000,
   });
   const create = useMutation({
     mutationFn: createAccount,
@@ -604,9 +663,9 @@ function AccountRow(props: {
 
 function RulesPage() {
   const qc = useQueryClient();
-  const rulesQ = useQuery({ queryKey: ['rules'], queryFn: fetchRules });
-  const catsQ = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
-  const accountsQ = useQuery({ queryKey: ['accounts'], queryFn: () => fetchAccounts(false) });
+  const rulesQ = useQuery({ queryKey: ['rules'], queryFn: fetchRules, staleTime: 2 * 60 * 1000 });
+  const catsQ = useQuery({ queryKey: ['categories'], queryFn: fetchCategories, staleTime: 10 * 60 * 1000 });
+  const accountsQ = useQuery({ queryKey: ['accounts'], queryFn: () => fetchAccounts(false), staleTime: 2 * 60 * 1000 });
   const categoryOptions = useMemo(() => buildCategoryOptions(catsQ.data ?? []), [catsQ.data]);
 
   const create = useMutation({
@@ -943,9 +1002,6 @@ function TransactionTable(props: {
   onEdit: (txn: Transaction) => void;
   isPending: boolean;
 }) {
-  if (props.rows.length === 0) {
-    return <p className="text-zinc-500">No transactions match.</p>;
-  }
   return (
     <>
       {/* Mobile card list */}

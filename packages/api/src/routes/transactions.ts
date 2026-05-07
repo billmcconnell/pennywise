@@ -1,10 +1,12 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { alias } from 'drizzle-orm/pg-core';
-import { and, desc, eq, gte, ilike, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, isNull, lt, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { transactionUpdateSchema } from '@pennywise/shared';
 import type { Db } from '../db/client.js';
 import { accounts, categories, transactionEdits, transactions } from '../db/schema.js';
+
+const PAGE_SIZE = 50;
 
 const listQuerySchema = z.object({
   month: z
@@ -13,6 +15,8 @@ const listQuerySchema = z.object({
     .optional(),
   accountId: z.string().uuid().optional(),
   q: z.string().min(1).max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
 });
 
 const monthRangeSchema = z.object({
@@ -58,7 +62,9 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     if (!parsed.success) {
       return reply.code(400).send({ error: 'bad query', detail: parsed.error.flatten() });
     }
-    const { month, accountId, q } = parsed.data;
+    const { month, accountId, q, limit, offset } = parsed.data;
+    const pageSize = limit ?? PAGE_SIZE;
+    const pageOffset = offset ?? 0;
 
     const conditions = [eq(transactions.householdId, household.id)];
     if (accountId) conditions.push(eq(transactions.accountId, accountId));
@@ -77,30 +83,38 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
       if (orExpr) conditions.push(orExpr);
     }
 
-    const rows = await db
-      .select({
-        id: transactions.id,
-        transactionDate: transactions.transactionDate,
-        amount: transactions.amount,
-        description: transactions.description,
-        originalDescription: transactions.originalDescription,
-        merchant: transactions.merchant,
-        notes: transactions.notes,
-        tags: transactions.tags,
-        accountId: transactions.accountId,
-        accountName: accounts.name,
-        categoryId: transactions.categoryId,
-        categorySlug: categories.slug,
-        categoryName: categories.name,
-        autoCategorized: transactions.autoCategorized,
-      })
-      .from(transactions)
-      .leftJoin(categories, eq(transactions.categoryId, categories.id))
-      .leftJoin(accounts, eq(transactions.accountId, accounts.id))
-      .where(and(...conditions))
-      .orderBy(desc(transactions.transactionDate), desc(transactions.createdAt));
+    const where = and(...conditions);
 
-    return rows;
+    const [totalResult, rows] = await Promise.all([
+      db.select({ total: count() }).from(transactions).where(where),
+      db
+        .select({
+          id: transactions.id,
+          transactionDate: transactions.transactionDate,
+          amount: transactions.amount,
+          description: transactions.description,
+          originalDescription: transactions.originalDescription,
+          merchant: transactions.merchant,
+          notes: transactions.notes,
+          tags: transactions.tags,
+          accountId: transactions.accountId,
+          accountName: accounts.name,
+          categoryId: transactions.categoryId,
+          categorySlug: categories.slug,
+          categoryName: categories.name,
+          autoCategorized: transactions.autoCategorized,
+        })
+        .from(transactions)
+        .leftJoin(categories, eq(transactions.categoryId, categories.id))
+        .leftJoin(accounts, eq(transactions.accountId, accounts.id))
+        .where(where)
+        .orderBy(desc(transactions.transactionDate), desc(transactions.createdAt))
+        .limit(pageSize)
+        .offset(pageOffset),
+    ]);
+
+    const total = totalResult[0]?.total ?? 0;
+    return { rows, total, hasMore: pageOffset + pageSize < total };
   });
 
   app.patch<{ Params: { id: string } }>('/transactions/:id', async (req, reply) => {

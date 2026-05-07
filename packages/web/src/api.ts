@@ -199,12 +199,26 @@ function buildQuery(params: Record<string, string | undefined>): string {
   return `?${usp.toString()}`;
 }
 
+export interface TransactionPage {
+  rows: Transaction[];
+  total: number;
+  hasMore: boolean;
+}
+
 export function fetchTransactions(
   month?: string,
   accountId?: string,
   q?: string,
-): Promise<Transaction[]> {
-  return jget<Transaction[]>(`/api/transactions${buildQuery({ month, accountId, q })}`);
+  offset?: number,
+): Promise<TransactionPage> {
+  return jget<TransactionPage>(
+    `/api/transactions${buildQuery({
+      month,
+      accountId,
+      q,
+      offset: offset ? String(offset) : undefined,
+    })}`,
+  );
 }
 
 export function fetchCategories(): Promise<Category[]> {

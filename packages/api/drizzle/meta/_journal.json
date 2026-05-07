@@ -15,6 +15,20 @@
       "when": 1777988005175,
       "tag": "0001_talented_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778113967756,
+      "tag": "0002_sweet_medusa",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778166764648,
+      "tag": "0003_chilly_absorbing_man",
+      "breakpoints": true
     }
   ]
 }

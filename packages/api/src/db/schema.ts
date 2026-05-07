@@ -124,6 +124,7 @@ export const transactions = pgTable(
   (t) => [
     uniqueIndex('transactions_account_fingerprint_uq').on(t.accountId, t.fingerprint),
     index('transactions_household_date_idx').on(t.householdId, t.transactionDate),
+    index('transactions_account_idx').on(t.accountId),
     index('transactions_category_idx').on(t.categoryId),
   ],
 );
