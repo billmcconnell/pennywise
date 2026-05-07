@@ -43,8 +43,8 @@ export function SpendingPie(props: { totals: CategoryTotal[]; categories: Catego
           {grandTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
         </span>
       </div>
-      <div style={{ width: '100%', height: 280 }}>
-        <ResponsiveContainer>
+      <div className="h-[240px] w-full sm:h-[280px]">
+        <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={slices}

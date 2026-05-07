@@ -67,8 +67,8 @@ export function CategoryTrends(props: { data: CategoryTrendPoint[] }) {
   return (
     <div className="rounded border border-zinc-200 p-4">
       <h2 className="mb-2 text-lg font-medium">Category trends (12 months)</h2>
-      <div style={{ width: '100%', height: 280 }}>
-        <ResponsiveContainer>
+      <div className="h-[240px] w-full sm:h-[280px]">
+        <ResponsiveContainer width="100%" height="100%">
           <LineChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />

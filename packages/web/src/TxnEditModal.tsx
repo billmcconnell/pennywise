@@ -99,7 +99,7 @@ export function TxnEditModal(props: {
       onClick={props.onClose}
     >
       <div
-        className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl"
+        className="w-full max-w-lg rounded-lg bg-white p-3 shadow-xl sm:p-5 max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="mb-3 flex items-baseline justify-between">

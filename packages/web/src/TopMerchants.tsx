@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -9,10 +10,22 @@ import {
 } from 'recharts';
 import type { MerchantTotal } from './api';
 
+function useIsNarrow() {
+  const [narrow, setNarrow] = useState(() => window.innerWidth < 640);
+  useEffect(() => {
+    const fn = () => setNarrow(window.innerWidth < 640);
+    window.addEventListener('resize', fn, { passive: true });
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+  return narrow;
+}
+
 const fmt = (n: number): string =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
 export function TopMerchants(props: { data: MerchantTotal[] }) {
+  const isNarrow = useIsNarrow();
+
   if (props.data.length === 0) {
     return (
       <div className="rounded border border-zinc-200 p-6 text-sm text-zinc-500">
@@ -21,8 +34,11 @@ export function TopMerchants(props: { data: MerchantTotal[] }) {
     );
   }
 
+  const truncLen = isNarrow ? 14 : 28;
+  const yAxisWidth = isNarrow ? 100 : 180;
+
   const rows = props.data.map((m) => ({
-    key: truncate(m.key, 28),
+    key: truncate(m.key, truncLen),
     full: m.key,
     total: Number(m.total),
     count: m.count,
@@ -34,11 +50,11 @@ export function TopMerchants(props: { data: MerchantTotal[] }) {
     <div className="rounded border border-zinc-200 p-4">
       <h2 className="mb-2 text-lg font-medium">Top merchants</h2>
       <div style={{ width: '100%', height }}>
-        <ResponsiveContainer>
+        <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} layout="vertical" margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
             <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmt(v)} />
-            <YAxis type="category" dataKey="key" width={180} tick={{ fontSize: 11 }} />
+            <YAxis type="category" dataKey="key" width={yAxisWidth} tick={{ fontSize: 11 }} />
             <Tooltip
               formatter={(v: number, _name, props2) => [
                 fmt(v),

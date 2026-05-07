@@ -74,25 +74,33 @@ const APPLY_SCOPES: { value: RuleApplyScope; label: string }[] = [
 export function App() {
   const [view, setView] = useState<View>('dashboard');
   return (
-    <main className="mx-auto flex max-w-6xl flex-col gap-4 p-6">
-      <header className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold">Pennywise</h1>
-        <nav className="flex gap-2 text-sm">
-          <TabButton active={view === 'dashboard'} onClick={() => setView('dashboard')}>
-            Dashboard
-          </TabButton>
-          <TabButton active={view === 'accounts'} onClick={() => setView('accounts')}>
-            Accounts
-          </TabButton>
-          <TabButton active={view === 'rules'} onClick={() => setView('rules')}>
-            Rules
-          </TabButton>
-        </nav>
-      </header>
-      {view === 'dashboard' && <Dashboard />}
-      {view === 'accounts' && <AccountsPage />}
-      {view === 'rules' && <RulesPage />}
-    </main>
+    <>
+      <main className="mx-auto flex max-w-6xl flex-col gap-4 p-3 pb-20 sm:p-6 md:pb-6">
+        <header className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Pennywise</h1>
+          <nav className="hidden gap-2 text-sm md:flex">
+            <TabButton active={view === 'dashboard'} onClick={() => setView('dashboard')}>
+              Dashboard
+            </TabButton>
+            <TabButton active={view === 'accounts'} onClick={() => setView('accounts')}>
+              Accounts
+            </TabButton>
+            <TabButton active={view === 'rules'} onClick={() => setView('rules')}>
+              Rules
+            </TabButton>
+          </nav>
+        </header>
+        {view === 'dashboard' && <Dashboard />}
+        {view === 'accounts' && <AccountsPage />}
+        {view === 'rules' && <RulesPage />}
+      </main>
+
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-zinc-200 bg-white md:hidden">
+        <BottomNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} label="Dashboard" />
+        <BottomNavButton active={view === 'accounts'} onClick={() => setView('accounts')} label="Accounts" />
+        <BottomNavButton active={view === 'rules'} onClick={() => setView('rules')} label="Rules" />
+      </nav>
+    </>
   );
 }
 
@@ -105,6 +113,19 @@ function TabButton(props: { active: boolean; onClick: () => void; children: Reac
       }`}
     >
       {props.children}
+    </button>
+  );
+}
+
+function BottomNavButton(props: { active: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      onClick={props.onClick}
+      className={`flex flex-1 items-center justify-center py-3 text-sm font-medium transition-colors ${
+        props.active ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-500'
+      }`}
+    >
+      {props.label}
     </button>
   );
 }
@@ -176,7 +197,7 @@ function Dashboard() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
         <label className="text-sm text-zinc-600">
           Month:{' '}
           <select
@@ -485,9 +506,9 @@ function AccountsTable(props: {
           <tr>
             <th className="px-3 py-2 font-medium">Name</th>
             <th className="px-3 py-2 font-medium">Type</th>
-            <th className="px-3 py-2 font-medium">Institution</th>
-            <th className="px-3 py-2 text-right font-medium">Opening</th>
-            <th className="px-3 py-2 text-right font-medium">Current</th>
+            <th className="hidden px-3 py-2 font-medium sm:table-cell">Institution</th>
+            <th className="hidden px-3 py-2 text-right font-medium sm:table-cell">Opening</th>
+            <th className="hidden px-3 py-2 text-right font-medium sm:table-cell">Current</th>
             <th className="px-3 py-2 font-medium">Status</th>
             <th className="px-3 py-2 font-medium" />
           </tr>
@@ -543,11 +564,11 @@ function AccountRow(props: {
           ))}
         </select>
       </td>
-      <td className="px-3 py-2 text-zinc-600">{props.account.institution ?? '—'}</td>
-      <td className="px-3 py-2 text-right tabular-nums">
+      <td className="hidden px-3 py-2 text-zinc-600 sm:table-cell">{props.account.institution ?? '—'}</td>
+      <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">
         {fmtMoney(props.account.openingBalance)}
       </td>
-      <td className="px-3 py-2 text-right tabular-nums">
+      <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">
         {fmtMoney(props.account.currentBalance)}
       </td>
       <td className="px-3 py-2">{archived ? 'Archived' : 'Active'}</td>
@@ -687,7 +708,7 @@ function NewRuleForm(props: {
       <Field label="Pattern">
         <input
           required
-          className="w-64 rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="w-full rounded border border-zinc-300 px-2 py-1 text-sm sm:w-64"
           value={pattern}
           onChange={(e) => setPattern(e.target.value)}
         />
@@ -807,10 +828,10 @@ function RulesTable(props: {
       <table className="w-full text-sm">
         <thead className="bg-zinc-50 text-left text-zinc-600">
           <tr>
-            <th className="px-3 py-2 font-medium">Match</th>
+            <th className="hidden px-3 py-2 font-medium sm:table-cell">Match</th>
             <th className="px-3 py-2 font-medium">Pattern</th>
             <th className="px-3 py-2 font-medium">Category</th>
-            <th className="px-3 py-2 font-medium">Priority</th>
+            <th className="hidden px-3 py-2 font-medium sm:table-cell">Priority</th>
             <th className="px-3 py-2 font-medium">Enabled</th>
             <th className="px-3 py-2 font-medium" />
           </tr>
@@ -841,7 +862,7 @@ function RuleRow(props: {
 }) {
   return (
     <tr className="border-t border-zinc-100">
-      <td className="px-3 py-2 text-zinc-600">
+      <td className="hidden px-3 py-2 text-zinc-600 sm:table-cell">
         {MATCH_TYPES.find((m) => m.value === props.rule.matchType)?.label ?? props.rule.matchType}
       </td>
       <td className="px-3 py-2 font-mono text-xs">{props.rule.pattern}</td>
@@ -859,7 +880,7 @@ function RuleRow(props: {
           ))}
         </select>
       </td>
-      <td className="px-3 py-2">
+      <td className="hidden px-3 py-2 sm:table-cell">
         <input
           type="number"
           className="w-16 rounded border border-zinc-300 px-2 py-1"
@@ -926,79 +947,142 @@ function TransactionTable(props: {
     return <p className="text-zinc-500">No transactions match.</p>;
   }
   return (
-    <div className="overflow-x-auto rounded border border-zinc-200">
-      <table className="w-full text-sm">
-        <thead className="bg-zinc-50 text-left text-zinc-600">
-          <tr>
-            <th className="px-3 py-2 font-medium">Date</th>
-            <th className="px-3 py-2 font-medium">Account</th>
-            <th className="px-3 py-2 font-medium">Description</th>
-            <th className="px-3 py-2 text-right font-medium">Amount</th>
-            <th className="px-3 py-2 font-medium">Category</th>
-            <th className="px-3 py-2 font-medium" />
-          </tr>
-        </thead>
-        <tbody>
-          {props.rows.map((r) => (
-            <tr key={r.id} className="border-t border-zinc-100">
-              <td className="px-3 py-2 tabular-nums text-zinc-600">{r.transactionDate}</td>
-              <td className="px-3 py-2 text-zinc-600">{r.accountName ?? '—'}</td>
-              <td className="px-3 py-2">
-                <div>{r.description}</div>
-                {r.tags.length > 0 && (
-                  <div className="mt-0.5 flex flex-wrap gap-1">
-                    {r.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </td>
-              <td
-                className={`px-3 py-2 text-right tabular-nums ${
+    <>
+      {/* Mobile card list */}
+      <div className="flex flex-col divide-y divide-zinc-100 rounded border border-zinc-200 md:hidden">
+        {props.rows.map((r) => (
+          <div key={r.id} className="p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">{r.description}</div>
+                <div className="mt-0.5 text-xs text-zinc-500">
+                  {r.transactionDate}
+                  {r.accountName ? ` · ${r.accountName}` : ''}
+                </div>
+              </div>
+              <div
+                className={`shrink-0 tabular-nums text-sm font-medium ${
                   Number(r.amount) < 0 ? 'text-emerald-700' : 'text-zinc-900'
                 }`}
               >
                 {fmtMoney(r.amount)}
-              </td>
-              <td className="px-3 py-2">
-                <select
-                  className="w-full rounded border border-zinc-300 bg-white px-2 py-1"
-                  value={r.categoryId ?? ''}
-                  disabled={props.isPending}
-                  onChange={(e) =>
-                    props.onChange(r.id, e.target.value === '' ? null : e.target.value)
-                  }
-                >
-                  <option value="">—</option>
-                  {props.categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-                {r.autoCategorized && (
-                  <span className="ml-1 text-xs text-zinc-400">auto</span>
-                )}
-              </td>
-              <td className="px-3 py-2">
-                <button
-                  type="button"
-                  onClick={() => props.onEdit(r)}
-                  className="rounded bg-zinc-200 px-2 py-1 text-xs text-zinc-800"
-                >
-                  Edit
-                </button>
-              </td>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <select
+                className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-2 py-1 text-xs"
+                value={r.categoryId ?? ''}
+                disabled={props.isPending}
+                onChange={(e) =>
+                  props.onChange(r.id, e.target.value === '' ? null : e.target.value)
+                }
+              >
+                <option value="">—</option>
+                {props.categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              {r.autoCategorized && (
+                <span className="shrink-0 text-xs text-zinc-400">auto</span>
+              )}
+              <button
+                type="button"
+                onClick={() => props.onEdit(r)}
+                className="shrink-0 rounded bg-zinc-200 px-2 py-1 text-xs text-zinc-800"
+              >
+                Edit
+              </button>
+            </div>
+            {r.tags.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {r.tags.map((t) => (
+                  <span key={t} className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden overflow-x-auto rounded border border-zinc-200 md:block">
+        <table className="w-full text-sm">
+          <thead className="bg-zinc-50 text-left text-zinc-600">
+            <tr>
+              <th className="px-3 py-2 font-medium">Date</th>
+              <th className="px-3 py-2 font-medium">Account</th>
+              <th className="px-3 py-2 font-medium">Description</th>
+              <th className="px-3 py-2 text-right font-medium">Amount</th>
+              <th className="px-3 py-2 font-medium">Category</th>
+              <th className="px-3 py-2 font-medium" />
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {props.rows.map((r) => (
+              <tr key={r.id} className="border-t border-zinc-100">
+                <td className="px-3 py-2 tabular-nums text-zinc-600">{r.transactionDate}</td>
+                <td className="px-3 py-2 text-zinc-600">{r.accountName ?? '—'}</td>
+                <td className="px-3 py-2">
+                  <div>{r.description}</div>
+                  {r.tags.length > 0 && (
+                    <div className="mt-0.5 flex flex-wrap gap-1">
+                      {r.tags.map((t) => (
+                        <span
+                          key={t}
+                          className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </td>
+                <td
+                  className={`px-3 py-2 text-right tabular-nums ${
+                    Number(r.amount) < 0 ? 'text-emerald-700' : 'text-zinc-900'
+                  }`}
+                >
+                  {fmtMoney(r.amount)}
+                </td>
+                <td className="px-3 py-2">
+                  <select
+                    className="w-full rounded border border-zinc-300 bg-white px-2 py-1"
+                    value={r.categoryId ?? ''}
+                    disabled={props.isPending}
+                    onChange={(e) =>
+                      props.onChange(r.id, e.target.value === '' ? null : e.target.value)
+                    }
+                  >
+                    <option value="">—</option>
+                    {props.categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                  {r.autoCategorized && (
+                    <span className="ml-1 text-xs text-zinc-400">auto</span>
+                  )}
+                </td>
+                <td className="px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => props.onEdit(r)}
+                    className="rounded bg-zinc-200 px-2 py-1 text-xs text-zinc-800"
+                  >
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 

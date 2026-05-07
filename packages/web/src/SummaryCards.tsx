@@ -6,7 +6,7 @@ const fmt = (s: string): string =>
 export function SummaryCards(props: { summary: Summary | undefined; isLoading: boolean }) {
   const s = props.summary;
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
       <Card label="Income" value={s ? fmt(s.income) : '—'} accent="emerald" loading={props.isLoading} />
       <Card label="Expenses" value={s ? fmt(s.expenses) : '—'} accent="rose" loading={props.isLoading} />
       <Card label="Net" value={s ? fmt(s.net) : '—'} accent={s && Number(s.net) < 0 ? 'rose' : 'emerald'} loading={props.isLoading} />
