@@ -129,6 +129,29 @@ export const transactions = pgTable(
   ],
 );
 
+export const budgets = pgTable(
+  'budgets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'cascade' }),
+    amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    uniqueIndex('budgets_household_category_uq').on(t.householdId, t.categoryId),
+    index('budgets_household_idx').on(t.householdId),
+  ],
+);
+
 export const transactionEdits = pgTable(
   'transaction_edits',
   {

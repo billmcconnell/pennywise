@@ -126,6 +126,25 @@ export interface CategoryTrendPoint {
   total: string;
 }
 
+export interface Budget {
+  id: string;
+  categoryId: string;
+  categoryName: string | null;
+  categorySlug: string | null;
+  amount: string;
+}
+
+export interface BudgetStatus {
+  categoryId: string;
+  categoryName: string | null;
+  categorySlug: string | null;
+  budget: string;
+  actual: string;
+  remaining: string;
+  pct: number;
+  isOver: boolean;
+}
+
 export interface ImportResult {
   parsed: number;
   inserted: number;
@@ -333,6 +352,23 @@ export function applyRulesNow(
   const body: { scope: RuleApplyScope; accountId?: string } = { scope };
   if (accountId) body.accountId = accountId;
   return jsend<RuleApplyResult>('/api/rules/apply', 'POST', body);
+}
+
+export function fetchBudgets(): Promise<Budget[]> {
+  return jget<Budget[]>('/api/budgets');
+}
+
+export function fetchBudgetStatus(month?: string, accountId?: string): Promise<BudgetStatus[]> {
+  return jget<BudgetStatus[]>(`/api/budgets/status${buildQuery({ month, accountId })}`);
+}
+
+export async function upsertBudget(categoryId: string, amount: string): Promise<Budget> {
+  return jsend<Budget>(`/api/budgets/${categoryId}`, 'PUT', { amount });
+}
+
+export async function deleteBudget(categoryId: string): Promise<void> {
+  const res = await fetch(`/api/budgets/${categoryId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`delete ${res.status}`);
 }
 
 export async function uploadCsv(accountId: string, file: File): Promise<ImportResult> {

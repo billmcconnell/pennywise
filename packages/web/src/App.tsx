@@ -6,7 +6,10 @@ import {
   createAccount,
   createRule,
   deleteRule,
+  deleteBudget,
   fetchAccounts,
+  fetchBudgets,
+  fetchBudgetStatus,
   fetchByCategory,
   fetchByMonth,
   fetchCategories,
@@ -19,10 +22,12 @@ import {
   patchTransactionCategory,
   updateAccount,
   updateRule,
+  upsertBudget,
   uploadCsv,
   type Account,
   type AccountCreateBody,
   type AccountType,
+  type Budget,
   type Category,
   type Rule,
   type RuleApplyScope,
@@ -30,6 +35,7 @@ import {
   type RuleMatchType,
   type Transaction,
 } from './api';
+import { BudgetStatusPanel } from './BudgetStatus';
 import { CategoryTrends } from './CategoryTrends';
 import { InsightCards } from './InsightCards';
 import { SpendingPie } from './SpendingPie';
@@ -56,7 +62,7 @@ const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'investment', label: 'Investment' },
 ];
 
-type View = 'dashboard' | 'accounts' | 'rules';
+type View = 'dashboard' | 'accounts' | 'rules' | 'budgets';
 
 const MATCH_TYPES: { value: RuleMatchType; label: string }[] = [
   { value: 'merchant_contains', label: 'merchant contains' },
@@ -96,6 +102,9 @@ export function App() {
             <TabButton active={view === 'accounts'} onClick={() => setView('accounts')}>
               Accounts
             </TabButton>
+            <TabButton active={view === 'budgets'} onClick={() => setView('budgets')}>
+              Budgets
+            </TabButton>
             <TabButton active={view === 'rules'} onClick={() => setView('rules')}>
               Rules
             </TabButton>
@@ -103,12 +112,14 @@ export function App() {
         </header>
         {view === 'dashboard' && <Dashboard />}
         {view === 'accounts' && <AccountsPage />}
+        {view === 'budgets' && <BudgetsPage />}
         {view === 'rules' && <RulesPage />}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-zinc-200 bg-white md:hidden">
         <BottomNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} label="Dashboard" />
         <BottomNavButton active={view === 'accounts'} onClick={() => setView('accounts')} label="Accounts" />
+        <BottomNavButton active={view === 'budgets'} onClick={() => setView('budgets')} label="Budgets" />
         <BottomNavButton active={view === 'rules'} onClick={() => setView('rules')} label="Rules" />
       </nav>
     </>
@@ -214,6 +225,12 @@ function Dashboard() {
     staleTime: 30 * 1000,
   });
 
+  const budgetStatusQ = useQuery({
+    queryKey: ['budget-status', month, accountId],
+    queryFn: () => fetchBudgetStatus(month, accountId || undefined),
+    staleTime: 30 * 1000,
+  });
+
   const patch = useMutation({
     mutationFn: ({ id, categoryId }: { id: string; categoryId: string | null }) =>
       patchTransactionCategory(id, categoryId),
@@ -296,6 +313,10 @@ function Dashboard() {
       <SummaryCards summary={summaryQ.data} isLoading={summaryQ.isLoading} />
 
       {insightsQ.data && <InsightCards data={insightsQ.data} />}
+
+      {budgetStatusQ.data && budgetStatusQ.data.length > 0 && (
+        <BudgetStatusPanel data={budgetStatusQ.data} />
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {byCat.data && cats.data && <SpendingPie totals={byCat.data} categories={cats.data} />}
@@ -655,6 +676,218 @@ function AccountRow(props: {
               Archive
             </button>
           )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function BudgetsPage() {
+  const qc = useQueryClient();
+  const catsQ = useQuery({
+    queryKey: ['categories'],
+    queryFn: fetchCategories,
+    staleTime: 10 * 60 * 1000,
+  });
+  const budgetsQ = useQuery({
+    queryKey: ['budgets'],
+    queryFn: fetchBudgets,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const upsert = useMutation({
+    mutationFn: ({ categoryId, amount }: { categoryId: string; amount: string }) =>
+      upsertBudget(categoryId, amount),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budgets'] });
+      qc.invalidateQueries({ queryKey: ['budget-status'] });
+    },
+  });
+  const remove = useMutation({
+    mutationFn: deleteBudget,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budgets'] });
+      qc.invalidateQueries({ queryKey: ['budget-status'] });
+    },
+  });
+
+  // Top-level categories only (no parentId)
+  const topLevelCats = useMemo(
+    () => (catsQ.data ?? []).filter((c) => c.parentId === null),
+    [catsQ.data],
+  );
+  const budgetedIds = useMemo(
+    () => new Set((budgetsQ.data ?? []).map((b) => b.categoryId)),
+    [budgetsQ.data],
+  );
+  const availableCats = useMemo(
+    () => topLevelCats.filter((c) => !budgetedIds.has(c.id)),
+    [topLevelCats, budgetedIds],
+  );
+
+  return (
+    <div className="flex flex-col gap-6">
+      <NewBudgetForm
+        categories={availableCats}
+        onSubmit={(categoryId, amount) => upsert.mutate({ categoryId, amount })}
+        isPending={upsert.isPending}
+        error={upsert.error as Error | null}
+      />
+      {budgetsQ.isLoading && <p className="text-zinc-500">loading…</p>}
+      {budgetsQ.data && budgetsQ.data.length === 0 && (
+        <p className="text-zinc-500">No budgets yet. Add one above.</p>
+      )}
+      {budgetsQ.data && budgetsQ.data.length > 0 && (
+        <BudgetsTable
+          rows={budgetsQ.data}
+          onSave={(categoryId, amount) => upsert.mutate({ categoryId, amount })}
+          onDelete={(categoryId) => remove.mutate(categoryId)}
+          isPending={upsert.isPending || remove.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+function NewBudgetForm(props: {
+  categories: Category[];
+  onSubmit: (categoryId: string, amount: string) => void;
+  isPending: boolean;
+  error: Error | null;
+}) {
+  const [categoryId, setCategoryId] = useState('');
+  const [amount, setAmount] = useState('');
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!categoryId || !amount) return;
+    props.onSubmit(categoryId, amount);
+    setCategoryId('');
+    setAmount('');
+  }
+
+  return (
+    <form
+      className="flex flex-wrap items-end gap-3 rounded border border-zinc-200 bg-zinc-50 p-3"
+      onSubmit={handleSubmit}
+    >
+      <Field label="Category">
+        <select
+          required
+          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+        >
+          <option value="">— choose —</option>
+          {props.categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Monthly budget">
+        <input
+          required
+          type="number"
+          min="0.01"
+          step="0.01"
+          placeholder="500.00"
+          className="w-32 rounded border border-zinc-300 px-2 py-1 text-sm"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+      </Field>
+      <button
+        type="submit"
+        disabled={props.isPending || !categoryId || !amount}
+        className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+      >
+        {props.isPending ? 'Saving…' : 'Add budget'}
+      </button>
+      {props.error && (
+        <span className="text-sm text-red-600">{props.error.message}</span>
+      )}
+    </form>
+  );
+}
+
+function BudgetsTable(props: {
+  rows: Budget[];
+  onSave: (categoryId: string, amount: string) => void;
+  onDelete: (categoryId: string) => void;
+  isPending: boolean;
+}) {
+  return (
+    <div className="overflow-x-auto rounded border border-zinc-200">
+      <table className="w-full text-sm">
+        <thead className="bg-zinc-50 text-left text-zinc-600">
+          <tr>
+            <th className="px-3 py-2 font-medium">Category</th>
+            <th className="px-3 py-2 font-medium">Monthly budget</th>
+            <th className="px-3 py-2 font-medium" />
+          </tr>
+        </thead>
+        <tbody>
+          {props.rows.map((b) => (
+            <BudgetRow
+              key={b.categoryId}
+              budget={b}
+              onSave={props.onSave}
+              onDelete={props.onDelete}
+              isPending={props.isPending}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function BudgetRow(props: {
+  budget: Budget;
+  onSave: (categoryId: string, amount: string) => void;
+  onDelete: (categoryId: string) => void;
+  isPending: boolean;
+}) {
+  const [amount, setAmount] = useState(props.budget.amount);
+  const dirty = amount !== props.budget.amount;
+
+  return (
+    <tr className="border-t border-zinc-100">
+      <td className="px-3 py-2 capitalize">{props.budget.categoryName ?? '—'}</td>
+      <td className="px-3 py-2">
+        <input
+          type="number"
+          min="0.01"
+          step="0.01"
+          className="w-32 rounded border border-zinc-300 px-2 py-1 text-sm"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          disabled={props.isPending}
+        />
+      </td>
+      <td className="px-3 py-2">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={!dirty || props.isPending}
+            onClick={() => props.onSave(props.budget.categoryId, amount)}
+            className="rounded bg-zinc-900 px-2 py-1 text-xs text-white disabled:opacity-40"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            disabled={props.isPending}
+            onClick={() => {
+              if (confirm(`Remove budget for "${props.budget.categoryName}"?`))
+                props.onDelete(props.budget.categoryId);
+            }}
+            className="rounded bg-zinc-200 px-2 py-1 text-xs text-zinc-800 disabled:opacity-40"
+          >
+            Delete
+          </button>
         </div>
       </td>
     </tr>
