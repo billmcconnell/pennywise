@@ -5,6 +5,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   numeric,
   pgEnum,
   pgTable,
@@ -37,6 +38,7 @@ export const households = pgTable('households', {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
+  preferences: jsonb('preferences').$type<{ defaultPeriod?: string; chartMonths?: number }>().default({}),
 });
 
 export const accounts = pgTable(

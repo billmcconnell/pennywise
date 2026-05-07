@@ -4,7 +4,7 @@ import type { MonthlyPoint } from './api';
 const fmt = (n: number): string =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
-export function MonthlyTrend(props: { data: MonthlyPoint[] }) {
+export function MonthlyTrend(props: { data: MonthlyPoint[]; months?: number }) {
   if (props.data.length === 0) {
     return (
       <div className="rounded border border-zinc-200 p-6 text-sm text-zinc-500">
@@ -21,7 +21,7 @@ export function MonthlyTrend(props: { data: MonthlyPoint[] }) {
 
   return (
     <div className="rounded border border-zinc-200 p-4">
-      <h2 className="mb-2 text-lg font-medium">Income vs expenses (12 months)</h2>
+      <h2 className="mb-2 text-lg font-medium">Income vs expenses ({props.months ?? 12} months)</h2>
       <div className="h-[220px] w-full sm:h-[280px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>

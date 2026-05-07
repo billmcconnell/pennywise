@@ -50,6 +50,13 @@
       "when": 1778169194436,
       "tag": "0006_plain_ma_gnuci",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1778171583632,
+      "tag": "0007_hot_snowbird",
+      "breakpoints": true
     }
   ]
 }

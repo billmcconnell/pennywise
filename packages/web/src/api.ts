@@ -509,3 +509,20 @@ export async function uploadCsv(accountId: string, file: File): Promise<ImportRe
   if (!res.ok) throw new Error(`upload ${res.status}`);
   return res.json() as Promise<ImportResult>;
 }
+
+export interface HouseholdSettings {
+  defaultPeriod: 'current' | 'previous' | 'latest_data';
+  chartMonths: 3 | 6 | 12;
+}
+
+export function fetchSettings(): Promise<HouseholdSettings> {
+  return jget<HouseholdSettings>('/api/settings');
+}
+
+export function updateSettings(patch: Partial<HouseholdSettings>): Promise<HouseholdSettings> {
+  return jsend<HouseholdSettings>('/api/settings', 'PATCH', patch);
+}
+
+export function fetchAvailableMonths(): Promise<string[]> {
+  return jget<string[]>('/api/transactions/months');
+}

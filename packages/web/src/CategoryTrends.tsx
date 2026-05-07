@@ -25,7 +25,7 @@ const COLORS: Record<string, string> = {
 const fmt = (n: number): string =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
-export function CategoryTrends(props: { data: CategoryTrendPoint[] }) {
+export function CategoryTrends(props: { data: CategoryTrendPoint[]; months?: number }) {
   const { series, topSlugs, slugNames } = useMemo(() => {
     if (props.data.length === 0) return { series: [], topSlugs: [], slugNames: new Map() };
 
@@ -66,7 +66,7 @@ export function CategoryTrends(props: { data: CategoryTrendPoint[] }) {
 
   return (
     <div className="rounded border border-zinc-200 p-4">
-      <h2 className="mb-2 text-lg font-medium">Category trends (12 months)</h2>
+      <h2 className="mb-2 text-lg font-medium">Category trends ({props.months ?? 12} months)</h2>
       <div className="h-[240px] w-full sm:h-[280px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>

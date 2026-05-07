@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   applyRulesNow,
@@ -8,6 +8,7 @@ import {
   deleteRule,
   deleteBudget,
   fetchAccounts,
+  fetchAvailableMonths,
   fetchBudgets,
   fetchBudgetStatus,
   fetchGoals,
@@ -17,6 +18,7 @@ import {
   fetchCategoryTrends,
   fetchInsights,
   fetchRules,
+  fetchSettings,
   fetchSummary,
   fetchTopMerchants,
   fetchTransactions,
@@ -37,6 +39,7 @@ import {
   type Transaction,
 } from './api';
 import { BudgetStatusPanel } from './BudgetStatus';
+import { SettingsPage } from './SettingsPage';
 import { BudgetHistory } from './BudgetHistory';
 import { BillsPage } from './BillsPage';
 import { GoalsPage } from './GoalsPage';
@@ -49,17 +52,6 @@ import { MonthlyTrend } from './MonthlyTrend';
 import { TopMerchants } from './TopMerchants';
 import { TxnEditModal } from './TxnEditModal';
 
-const monthOptions = (() => {
-  const out: string[] = [];
-  for (let y = 2024; y <= 2025; y++) {
-    for (let m = 1; m <= 12; m++) {
-      if (y === 2024 && m < 12) continue;
-      out.push(`${y}-${String(m).padStart(2, '0')}`);
-    }
-  }
-  return out;
-})();
-
 const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'checking', label: 'Checking' },
   { value: 'savings', label: 'Savings' },
@@ -67,7 +59,7 @@ const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'investment', label: 'Investment' },
 ];
 
-type View = 'dashboard' | 'accounts' | 'budgets' | 'goals' | 'bills' | 'rules';
+type View = 'dashboard' | 'accounts' | 'budgets' | 'goals' | 'bills' | 'rules' | 'settings';
 
 const MATCH_TYPES: { value: RuleMatchType; label: string }[] = [
   { value: 'merchant_contains', label: 'merchant contains' },
@@ -91,6 +83,14 @@ function useDebounce<T>(value: T, delay: number): T {
     return () => clearTimeout(id);
   }, [value, delay]);
   return debounced;
+}
+
+function clientAddMonths(month: string, delta: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const total = y! * 12 + (m! - 1) + delta;
+  const ny = Math.floor(total / 12);
+  const nm = (total % 12) + 1;
+  return `${ny}-${String(nm).padStart(2, '0')}`;
 }
 
 export function App() {
@@ -119,6 +119,9 @@ export function App() {
             <TabButton active={view === 'rules'} onClick={() => setView('rules')}>
               Rules
             </TabButton>
+            <TabButton active={view === 'settings'} onClick={() => setView('settings')}>
+              Settings
+            </TabButton>
           </nav>
         </header>
         {view === 'dashboard' && <Dashboard />}
@@ -127,6 +130,7 @@ export function App() {
         {view === 'goals' && <GoalsPage />}
         {view === 'bills' && <BillsPage />}
         {view === 'rules' && <RulesPage />}
+        {view === 'settings' && <SettingsPage />}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-zinc-200 bg-white md:hidden">
@@ -136,6 +140,7 @@ export function App() {
         <BottomNavButton active={view === 'goals'} onClick={() => setView('goals')} label="Goals" />
         <BottomNavButton active={view === 'bills'} onClick={() => setView('bills')} label="Bills" />
         <BottomNavButton active={view === 'rules'} onClick={() => setView('rules')} label="Rules" />
+        <BottomNavButton active={view === 'settings'} onClick={() => setView('settings')} label="Settings" />
       </nav>
     </>
   );
@@ -168,7 +173,7 @@ function BottomNavButton(props: { active: boolean; onClick: () => void; label: s
 }
 
 function Dashboard() {
-  const [month, setMonth] = useState<string>('2025-06');
+  const [month, setMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
   const [accountId, setAccountId] = useState<string>('');
   const [searchInput, setSearchInput] = useState<string>('');
   const search = useDebounce(searchInput, 300);
@@ -180,6 +185,37 @@ function Dashboard() {
     queryFn: () => fetchAccounts(false),
     staleTime: 2 * 60 * 1000,
   });
+
+  const settingsQ = useQuery({
+    queryKey: ['settings'],
+    queryFn: fetchSettings,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const availableMonthsQ = useQuery({
+    queryKey: ['available-months'],
+    queryFn: fetchAvailableMonths,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const hasAppliedDefault = useRef(false);
+  useEffect(() => {
+    if (hasAppliedDefault.current) return;
+    if (!settingsQ.data || !availableMonthsQ.data) return;
+    hasAppliedDefault.current = true;
+
+    const { defaultPeriod } = settingsQ.data;
+    const now = new Date().toISOString().slice(0, 7);
+
+    if (defaultPeriod === 'current') {
+      setMonth(now);
+    } else if (defaultPeriod === 'previous') {
+      setMonth(clientAddMonths(now, -1));
+    } else {
+      const latest = availableMonthsQ.data[0];
+      if (latest) setMonth(latest);
+    }
+  }, [settingsQ.data, availableMonthsQ.data]);
 
   const txnsQ = useInfiniteQuery({
     queryKey: ['transactions', month, accountId, search],
@@ -216,9 +252,13 @@ function Dashboard() {
     staleTime: 30 * 1000,
   });
 
+  const chartMonths = settingsQ.data?.chartMonths ?? 12;
+  const fromMonth = clientAddMonths(month, -(chartMonths - 1));
+  const monthOptions = availableMonthsQ.data ?? [];
+
   const byMonthQ = useQuery({
-    queryKey: ['by-month', accountId, month],
-    queryFn: () => fetchByMonth(undefined, month, accountId || undefined),
+    queryKey: ['by-month', accountId, month, chartMonths],
+    queryFn: () => fetchByMonth(fromMonth, month, accountId || undefined),
     staleTime: 30 * 1000,
   });
 
@@ -229,8 +269,8 @@ function Dashboard() {
   });
 
   const categoryTrendsQ = useQuery({
-    queryKey: ['category-trends', accountId, month],
-    queryFn: () => fetchCategoryTrends(undefined, month, accountId || undefined),
+    queryKey: ['category-trends', accountId, month, chartMonths],
+    queryFn: () => fetchCategoryTrends(fromMonth, month, accountId || undefined),
     staleTime: 30 * 1000,
   });
 
@@ -345,12 +385,12 @@ function Dashboard() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {byCat.data && cats.data && <SpendingPie totals={byCat.data} categories={cats.data} />}
-        {byMonthQ.data && <MonthlyTrend data={byMonthQ.data} />}
+        {byMonthQ.data && <MonthlyTrend data={byMonthQ.data} months={chartMonths} />}
       </div>
 
       {topMerchantsQ.data && <TopMerchants data={topMerchantsQ.data} />}
 
-      {categoryTrendsQ.data && <CategoryTrends data={categoryTrendsQ.data} />}
+      {categoryTrendsQ.data && <CategoryTrends data={categoryTrendsQ.data} months={chartMonths} />}
 
       {txnsQ.isLoading && <p className="text-zinc-500">loading…</p>}
       {txnsQ.error && <p className="text-red-600">error: {(txnsQ.error as Error).message}</p>}

@@ -18,6 +18,7 @@ import { exportRoutes } from './routes/exports.js';
 import { budgetRoutes } from './routes/budgets.js';
 import { billRoutes } from './routes/bills.js';
 import { goalRoutes } from './routes/goals.js';
+import { settingsRoutes } from './routes/settings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -49,6 +50,7 @@ async function main() {
   await app.register(budgetRoutes(db), { prefix: '/api' });
   await app.register(billRoutes(db), { prefix: '/api' });
   await app.register(goalRoutes(db), { prefix: '/api' });
+  await app.register(settingsRoutes(db), { prefix: '/api' });
 
   const webDist = path.resolve(__dirname, '..', config.WEB_DIST);
   await app.register(fastifyStatic, {

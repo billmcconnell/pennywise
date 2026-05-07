@@ -632,4 +632,19 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
 
     return rows;
   });
+
+  app.get('/transactions/months', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const rows = await db
+      .selectDistinct({
+        month: sql<string>`to_char(${transactions.transactionDate}::date, 'YYYY-MM')`,
+      })
+      .from(transactions)
+      .where(eq(transactions.householdId, household.id))
+      .orderBy(sql`1 DESC`);
+
+    return rows.map((r) => r.month);
+  });
 };
