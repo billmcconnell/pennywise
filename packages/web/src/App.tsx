@@ -40,6 +40,7 @@ import {
   type Transaction,
 } from './api';
 import { BudgetStatusPanel } from './BudgetStatus';
+import { NetWorthPanel } from './NetWorthPanel';
 import { SettingsPage } from './SettingsPage';
 import { BudgetHistory } from './BudgetHistory';
 import { BillsPage } from './BillsPage';
@@ -579,6 +580,7 @@ function AccountsPage() {
         <p className="text-sm text-red-600">{(create.error as Error).message}</p>
       )}
       {accountsQ.isLoading && <p className="text-zinc-500">loading…</p>}
+      {accountsQ.data && <NetWorthPanel accounts={accountsQ.data} />}
       {accountsQ.data && (
         <AccountsTable
           rows={accountsQ.data}
