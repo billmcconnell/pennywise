@@ -167,6 +167,13 @@ function Dashboard() {
 
   const categoryOptions = useMemo(() => buildCategoryOptions(cats.data ?? []), [cats.data]);
 
+  const csvHref = useMemo(() => {
+    const p = new URLSearchParams({ month });
+    if (accountId) p.set('accountId', accountId);
+    if (search) p.set('q', search);
+    return `/api/exports/transactions.csv?${p.toString()}`;
+  }, [month, accountId, search]);
+
   return (
     <>
       <div className="flex flex-wrap items-center gap-4">
@@ -209,6 +216,20 @@ function Dashboard() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </label>
+        <div className="ml-auto flex gap-2">
+          <a
+            href={csvHref}
+            className="rounded border border-zinc-300 px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-100"
+          >
+            Export CSV
+          </a>
+          <a
+            href="/api/exports/backup.json"
+            className="rounded border border-zinc-300 px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-100"
+          >
+            Backup JSON
+          </a>
+        </div>
       </div>
 
       <UploadForm accounts={accountsQ.data ?? []} />
