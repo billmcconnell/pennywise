@@ -357,6 +357,141 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     return rows;
   });
 
+  app.get('/transactions/insights', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const parsed = listQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'bad query', detail: parsed.error.flatten() });
+    }
+
+    const now = new Date();
+    const currentMonth =
+      parsed.data.month ??
+      `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    const priorMonth = addMonths(currentMonth, -1);
+    const { accountId } = parsed.data;
+
+    const { start: curStart, end: curEnd } = monthBounds(currentMonth);
+    const { start: priorStart, end: priorEnd } = monthBounds(priorMonth);
+    const { start: threeStart } = monthBounds(addMonths(currentMonth, -2));
+
+    const baseConditions = [eq(transactions.householdId, household.id)];
+    if (accountId) baseConditions.push(eq(transactions.accountId, accountId));
+
+    // 1. Uncategorized expense count for current month
+    const uncatRows = await db
+      .select({ count: sql<number>`cast(count(*) as int)` })
+      .from(transactions)
+      .where(
+        and(
+          ...baseConditions,
+          gte(transactions.transactionDate, curStart),
+          lt(transactions.transactionDate, curEnd),
+          isNull(transactions.categoryId),
+          sql`${transactions.amount} > 0`,
+        ),
+      );
+    const uncategorizedCount = uncatRows[0]?.count ?? 0;
+
+    // 2. Top-level category spend for current and prior month
+    const parentCats = alias(categories, 'parent_cats_ins');
+    const slugExpr = sql<string>`coalesce(${parentCats.slug}, ${categories.slug}, 'uncategorized')`;
+    const nameExpr = sql<string>`coalesce(${parentCats.name}, ${categories.name}, 'Uncategorized')`;
+
+    const queryCatTotals = (start: string, end: string) =>
+      db
+        .select({
+          slug: slugExpr,
+          name: nameExpr,
+          total: sql<string>`coalesce(sum(${transactions.amount}), '0')`,
+        })
+        .from(transactions)
+        .leftJoin(categories, eq(transactions.categoryId, categories.id))
+        .leftJoin(parentCats, eq(categories.parentId, parentCats.id))
+        .where(
+          and(
+            ...baseConditions,
+            gte(transactions.transactionDate, start),
+            lt(transactions.transactionDate, end),
+            sql`${transactions.amount} > 0`,
+          ),
+        )
+        .groupBy(slugExpr, nameExpr)
+        .orderBy(sql`sum(${transactions.amount}) desc`);
+
+    const [curCatRows, priorCatRows] = await Promise.all([
+      queryCatTotals(curStart, curEnd),
+      queryCatTotals(priorStart, priorEnd),
+    ]);
+
+    const priorBySlug = new Map(priorCatRows.map((r) => [r.slug, Number(r.total)]));
+
+    const topCategory = (() => {
+      const top = curCatRows.find(
+        (r) => r.slug !== 'uncategorized' && r.slug !== 'income' && Number(r.total) > 0,
+      );
+      if (!top) return null;
+      const currentTotal = Number(top.total);
+      const priorTotal = priorBySlug.get(top.slug) ?? 0;
+      const changePct = priorTotal > 0 ? ((currentTotal - priorTotal) / priorTotal) * 100 : null;
+      return {
+        name: top.name,
+        slug: top.slug,
+        currentTotal: currentTotal.toFixed(2),
+        priorTotal: priorTotal.toFixed(2),
+        changePct: changePct !== null ? Math.round(changePct) : null,
+      };
+    })();
+
+    // 3. Largest recurring merchant (appears in 2+ of last 3 months)
+    const merchantRows = await db
+      .select({
+        merchant: transactions.description,
+        month: sql<string>`to_char(${transactions.transactionDate}, 'YYYY-MM')`,
+        monthlyTotal: sql<string>`sum(${transactions.amount})`,
+      })
+      .from(transactions)
+      .where(
+        and(
+          ...baseConditions,
+          gte(transactions.transactionDate, threeStart),
+          lt(transactions.transactionDate, curEnd),
+          sql`${transactions.amount} > 0`,
+        ),
+      )
+      .groupBy(transactions.description, sql`to_char(${transactions.transactionDate}, 'YYYY-MM')`);
+
+    const merchantMonths = new Map<string, number[]>();
+    for (const r of merchantRows) {
+      const arr = merchantMonths.get(r.merchant) ?? [];
+      arr.push(Number(r.monthlyTotal));
+      merchantMonths.set(r.merchant, arr);
+    }
+
+    let largestRecurring: {
+      merchant: string;
+      avgMonthlyTotal: string;
+      monthCount: number;
+    } | null = null;
+    let bestAvg = 0;
+    for (const [merchant, totals] of merchantMonths) {
+      if (totals.length < 2) continue;
+      const avg = totals.reduce((s, v) => s + v, 0) / totals.length;
+      if (avg > bestAvg) {
+        bestAvg = avg;
+        largestRecurring = {
+          merchant,
+          avgMonthlyTotal: avg.toFixed(2),
+          monthCount: totals.length,
+        };
+      }
+    }
+
+    return { uncategorizedCount, topCategory, largestRecurring };
+  });
+
   app.get('/transactions/top-merchants', async (req, reply) => {
     const household = req.household;
     if (!household) return reply.code(401).send({ error: 'no household' });

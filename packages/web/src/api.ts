@@ -95,6 +95,22 @@ export interface CategoryTotal {
   count: number;
 }
 
+export interface InsightsData {
+  uncategorizedCount: number;
+  topCategory: {
+    name: string;
+    slug: string;
+    currentTotal: string;
+    priorTotal: string;
+    changePct: number | null;
+  } | null;
+  largestRecurring: {
+    merchant: string;
+    avgMonthlyTotal: string;
+    monthCount: number;
+  } | null;
+}
+
 export interface CategoryTrendPoint {
   month: string;
   slug: string;
@@ -203,6 +219,10 @@ export function fetchByMonth(
   accountId?: string,
 ): Promise<MonthlyPoint[]> {
   return jget<MonthlyPoint[]>(`/api/transactions/by-month${buildQuery({ from, to, accountId })}`);
+}
+
+export function fetchInsights(month?: string, accountId?: string): Promise<InsightsData> {
+  return jget<InsightsData>(`/api/transactions/insights${buildQuery({ month, accountId })}`);
 }
 
 export function fetchCategoryTrends(

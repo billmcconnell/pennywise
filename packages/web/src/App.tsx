@@ -11,6 +11,7 @@ import {
   fetchByMonth,
   fetchCategories,
   fetchCategoryTrends,
+  fetchInsights,
   fetchRules,
   fetchSummary,
   fetchTopMerchants,
@@ -30,6 +31,7 @@ import {
   type Transaction,
 } from './api';
 import { CategoryTrends } from './CategoryTrends';
+import { InsightCards } from './InsightCards';
 import { SpendingPie } from './SpendingPie';
 import { SummaryCards } from './SummaryCards';
 import { MonthlyTrend } from './MonthlyTrend';
@@ -148,6 +150,11 @@ function Dashboard() {
     queryFn: () => fetchCategoryTrends(undefined, month, accountId || undefined),
   });
 
+  const insightsQ = useQuery({
+    queryKey: ['insights', month, accountId],
+    queryFn: () => fetchInsights(month, accountId || undefined),
+  });
+
   const patch = useMutation({
     mutationFn: ({ id, categoryId }: { id: string; categoryId: string | null }) =>
       patchTransactionCategory(id, categoryId),
@@ -207,6 +214,8 @@ function Dashboard() {
       <UploadForm accounts={accountsQ.data ?? []} />
 
       <SummaryCards summary={summaryQ.data} isLoading={summaryQ.isLoading} />
+
+      {insightsQ.data && <InsightCards data={insightsQ.data} />}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {byCat.data && cats.data && <SpendingPie totals={byCat.data} categories={cats.data} />}
