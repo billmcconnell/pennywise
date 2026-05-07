@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { alias } from 'drizzle-orm/pg-core';
 import { and, desc, eq, gte, ilike, isNull, lt, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { transactionUpdateSchema } from '@pennywise/shared';
@@ -303,6 +304,57 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
       cursor = addMonths(cursor, 1);
     }
     return out;
+  });
+
+  app.get('/transactions/category-trends', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const parsed = monthRangeSchema.safeParse(req.query);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'bad query', detail: parsed.error.flatten() });
+    }
+    let { from, to } = parsed.data;
+    const { accountId } = parsed.data;
+
+    if (!to) {
+      const now = new Date();
+      to = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    }
+    if (!from) from = addMonths(to, -11);
+
+    const fromBounds = monthBounds(from);
+    const toBounds = monthBounds(to);
+
+    const parentCats = alias(categories, 'parent_cats');
+
+    const conditions = [
+      eq(transactions.householdId, household.id),
+      gte(transactions.transactionDate, fromBounds.start),
+      lt(transactions.transactionDate, toBounds.end),
+      sql`${transactions.amount} > 0`,
+    ];
+    if (accountId) conditions.push(eq(transactions.accountId, accountId));
+
+    const monthExpr = sql<string>`to_char(${transactions.transactionDate}, 'YYYY-MM')`;
+    const slugExpr = sql<string>`coalesce(${parentCats.slug}, ${categories.slug}, 'uncategorized')`;
+    const nameExpr = sql<string>`coalesce(${parentCats.name}, ${categories.name}, 'Uncategorized')`;
+
+    const rows = await db
+      .select({
+        month: monthExpr,
+        slug: slugExpr,
+        name: nameExpr,
+        total: sql<string>`coalesce(sum(${transactions.amount}), '0')`,
+      })
+      .from(transactions)
+      .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .leftJoin(parentCats, eq(categories.parentId, parentCats.id))
+      .where(and(...conditions))
+      .groupBy(monthExpr, slugExpr, nameExpr)
+      .orderBy(monthExpr);
+
+    return rows;
   });
 
   app.get('/transactions/top-merchants', async (req, reply) => {

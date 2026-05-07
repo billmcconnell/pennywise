@@ -10,6 +10,7 @@ import {
   fetchByCategory,
   fetchByMonth,
   fetchCategories,
+  fetchCategoryTrends,
   fetchRules,
   fetchSummary,
   fetchTopMerchants,
@@ -28,6 +29,7 @@ import {
   type RuleMatchType,
   type Transaction,
 } from './api';
+import { CategoryTrends } from './CategoryTrends';
 import { SpendingPie } from './SpendingPie';
 import { SummaryCards } from './SummaryCards';
 import { MonthlyTrend } from './MonthlyTrend';
@@ -141,6 +143,11 @@ function Dashboard() {
     queryFn: () => fetchTopMerchants(month, accountId || undefined, 10),
   });
 
+  const categoryTrendsQ = useQuery({
+    queryKey: ['category-trends', accountId, month],
+    queryFn: () => fetchCategoryTrends(undefined, month, accountId || undefined),
+  });
+
   const patch = useMutation({
     mutationFn: ({ id, categoryId }: { id: string; categoryId: string | null }) =>
       patchTransactionCategory(id, categoryId),
@@ -207,6 +214,8 @@ function Dashboard() {
       </div>
 
       {topMerchantsQ.data && <TopMerchants data={topMerchantsQ.data} />}
+
+      {categoryTrendsQ.data && <CategoryTrends data={categoryTrendsQ.data} />}
 
       {txns.isLoading && <p className="text-zinc-500">loading…</p>}
       {txns.error && <p className="text-red-600">error: {(txns.error as Error).message}</p>}

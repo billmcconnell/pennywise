@@ -95,6 +95,13 @@ export interface CategoryTotal {
   count: number;
 }
 
+export interface CategoryTrendPoint {
+  month: string;
+  slug: string;
+  name: string;
+  total: string;
+}
+
 export interface ImportResult {
   parsed: number;
   inserted: number;
@@ -196,6 +203,16 @@ export function fetchByMonth(
   accountId?: string,
 ): Promise<MonthlyPoint[]> {
   return jget<MonthlyPoint[]>(`/api/transactions/by-month${buildQuery({ from, to, accountId })}`);
+}
+
+export function fetchCategoryTrends(
+  from?: string,
+  to?: string,
+  accountId?: string,
+): Promise<CategoryTrendPoint[]> {
+  return jget<CategoryTrendPoint[]>(
+    `/api/transactions/category-trends${buildQuery({ from, to, accountId })}`,
+  );
 }
 
 export function fetchTopMerchants(
