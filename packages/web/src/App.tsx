@@ -36,6 +36,7 @@ import {
   type Transaction,
 } from './api';
 import { BudgetStatusPanel } from './BudgetStatus';
+import { BillsPage } from './BillsPage';
 import { CategoryTrends } from './CategoryTrends';
 import { InsightCards } from './InsightCards';
 import { SpendingPie } from './SpendingPie';
@@ -62,7 +63,7 @@ const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'investment', label: 'Investment' },
 ];
 
-type View = 'dashboard' | 'accounts' | 'rules' | 'budgets';
+type View = 'dashboard' | 'accounts' | 'budgets' | 'bills' | 'rules';
 
 const MATCH_TYPES: { value: RuleMatchType; label: string }[] = [
   { value: 'merchant_contains', label: 'merchant contains' },
@@ -105,6 +106,9 @@ export function App() {
             <TabButton active={view === 'budgets'} onClick={() => setView('budgets')}>
               Budgets
             </TabButton>
+            <TabButton active={view === 'bills'} onClick={() => setView('bills')}>
+              Bills
+            </TabButton>
             <TabButton active={view === 'rules'} onClick={() => setView('rules')}>
               Rules
             </TabButton>
@@ -113,6 +117,7 @@ export function App() {
         {view === 'dashboard' && <Dashboard />}
         {view === 'accounts' && <AccountsPage />}
         {view === 'budgets' && <BudgetsPage />}
+        {view === 'bills' && <BillsPage />}
         {view === 'rules' && <RulesPage />}
       </main>
 
@@ -120,6 +125,7 @@ export function App() {
         <BottomNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} label="Dashboard" />
         <BottomNavButton active={view === 'accounts'} onClick={() => setView('accounts')} label="Accounts" />
         <BottomNavButton active={view === 'budgets'} onClick={() => setView('budgets')} label="Budgets" />
+        <BottomNavButton active={view === 'bills'} onClick={() => setView('bills')} label="Bills" />
         <BottomNavButton active={view === 'rules'} onClick={() => setView('rules')} label="Rules" />
       </nav>
     </>

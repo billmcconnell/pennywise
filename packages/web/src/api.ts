@@ -126,6 +126,30 @@ export interface CategoryTrendPoint {
   total: string;
 }
 
+export interface RecurringBill {
+  id: string;
+  name: string;
+  matchPattern: string;
+  expectedAmount: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  dueDay: number | null;
+  isActive: boolean;
+}
+
+export interface BillStatus extends RecurringBill {
+  paid: boolean;
+  paidAmount: string | null;
+  paidDate: string | null;
+  transactionId: string | null;
+}
+
+export interface BillSuggestion {
+  pattern: string;
+  monthCount: number;
+  avgAmount: string;
+}
+
 export interface Budget {
   id: string;
   categoryId: string;
@@ -352,6 +376,39 @@ export function applyRulesNow(
   const body: { scope: RuleApplyScope; accountId?: string } = { scope };
   if (accountId) body.accountId = accountId;
   return jsend<RuleApplyResult>('/api/rules/apply', 'POST', body);
+}
+
+export function fetchBills(): Promise<RecurringBill[]> {
+  return jget<RecurringBill[]>('/api/bills');
+}
+
+export function fetchBillsStatus(month?: string): Promise<BillStatus[]> {
+  return jget<BillStatus[]>(`/api/bills/status${buildQuery({ month })}`);
+}
+
+export function fetchBillSuggestions(month?: string): Promise<BillSuggestion[]> {
+  return jget<BillSuggestion[]>(`/api/bills/suggestions${buildQuery({ month })}`);
+}
+
+export interface BillCreateBody {
+  name: string;
+  matchPattern: string;
+  expectedAmount?: string | null;
+  categoryId?: string | null;
+  dueDay?: number | null;
+}
+
+export function createBill(body: BillCreateBody): Promise<RecurringBill> {
+  return jsend<RecurringBill>('/api/bills', 'POST', body);
+}
+
+export function updateBill(id: string, body: Partial<BillCreateBody>): Promise<RecurringBill> {
+  return jsend<RecurringBill>(`/api/bills/${id}`, 'PATCH', body);
+}
+
+export async function deleteBill(id: string): Promise<void> {
+  const res = await fetch(`/api/bills/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`delete ${res.status}`);
 }
 
 export function fetchBudgets(): Promise<Budget[]> {

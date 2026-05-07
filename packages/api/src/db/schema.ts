@@ -129,6 +129,28 @@ export const transactions = pgTable(
   ],
 );
 
+export const recurringBills = pgTable(
+  'recurring_bills',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    matchPattern: text('match_pattern').notNull(),
+    expectedAmount: numeric('expected_amount', { precision: 14, scale: 2 }),
+    categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+    dueDay: integer('due_day'),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index('bills_household_idx').on(t.householdId)],
+);
+
 export const budgets = pgTable(
   'budgets',
   {
