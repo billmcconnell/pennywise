@@ -12,6 +12,7 @@ import {
   fetchBudgets,
   fetchBudgetStatus,
   fetchGoals,
+  fetchTags,
   fetchByCategory,
   fetchByMonth,
   fetchCategories,
@@ -177,6 +178,7 @@ function Dashboard() {
   const [accountId, setAccountId] = useState<string>('');
   const [searchInput, setSearchInput] = useState<string>('');
   const search = useDebounce(searchInput, 300);
+  const [tag, setTag] = useState<string>('');
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const qc = useQueryClient();
 
@@ -196,6 +198,12 @@ function Dashboard() {
     queryKey: ['available-months'],
     queryFn: fetchAvailableMonths,
     staleTime: 5 * 60 * 1000,
+  });
+
+  const tagsQ = useQuery({
+    queryKey: ['tags'],
+    queryFn: fetchTags,
+    staleTime: 2 * 60 * 1000,
   });
 
   const hasAppliedDefault = useRef(false);
@@ -218,9 +226,9 @@ function Dashboard() {
   }, [settingsQ.data, availableMonthsQ.data]);
 
   const txnsQ = useInfiniteQuery({
-    queryKey: ['transactions', month, accountId, search],
+    queryKey: ['transactions', month, accountId, search, tag],
     queryFn: ({ pageParam }) =>
-      fetchTransactions(month, accountId || undefined, search || undefined, pageParam),
+      fetchTransactions(month, accountId || undefined, search || undefined, pageParam, tag || undefined),
     initialPageParam: 0,
     getNextPageParam: (lastPage, _pages, lastPageParam) =>
       lastPage.hasMore ? lastPageParam + PAGE_SIZE : undefined,
@@ -308,8 +316,9 @@ function Dashboard() {
     const p = new URLSearchParams({ month });
     if (accountId) p.set('accountId', accountId);
     if (search) p.set('q', search);
+    if (tag) p.set('tag', tag);
     return `/api/exports/transactions.csv?${p.toString()}`;
-  }, [month, accountId, search]);
+  }, [month, accountId, search, tag]);
 
   return (
     <>
@@ -353,6 +362,23 @@ function Dashboard() {
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </label>
+        {(tagsQ.data ?? []).length > 0 && (
+          <label className="text-sm text-zinc-600">
+            Tag:{' '}
+            <select
+              className="rounded border border-zinc-300 px-2 py-1"
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+            >
+              <option value="">All tags</option>
+              {(tagsQ.data ?? []).map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="ml-auto flex gap-2">
           <a
             href={csvHref}

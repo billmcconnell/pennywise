@@ -297,15 +297,21 @@ export function fetchTransactions(
   accountId?: string,
   q?: string,
   offset?: number,
+  tag?: string,
 ): Promise<TransactionPage> {
   return jget<TransactionPage>(
     `/api/transactions${buildQuery({
       month,
       accountId,
       q,
+      tag,
       offset: offset ? String(offset) : undefined,
     })}`,
   );
+}
+
+export function fetchTags(): Promise<string[]> {
+  return jget<string[]>('/api/transactions/tags');
 }
 
 export function fetchCategories(): Promise<Category[]> {

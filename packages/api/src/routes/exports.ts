@@ -11,6 +11,7 @@ const listQuerySchema = z.object({
     .optional(),
   accountId: z.string().uuid().optional(),
   q: z.string().min(1).max(200).optional(),
+  tag: z.string().min(1).max(100).optional(),
 });
 
 function monthBounds(month: string): { start: string; end: string } {
@@ -39,7 +40,7 @@ export const exportRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) 
     if (!parsed.success) {
       return reply.code(400).send({ error: 'bad query', detail: parsed.error.flatten() });
     }
-    const { month, accountId, q } = parsed.data;
+    const { month, accountId, q, tag } = parsed.data;
 
     const conditions = [eq(transactions.householdId, household.id)];
     if (accountId) conditions.push(eq(transactions.accountId, accountId));
@@ -56,6 +57,9 @@ export const exportRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) 
         ilike(transactions.merchant, pat),
       );
       if (orExpr) conditions.push(orExpr);
+    }
+    if (tag) {
+      conditions.push(sql`${tag} = ANY(${transactions.tags})`);
     }
 
     const rows = await db
@@ -102,7 +106,8 @@ export const exportRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) 
       ].join(','),
     );
 
-    const filename = month ? `transactions-${month}.csv` : 'transactions.csv';
+    const suffix = [month, tag].filter(Boolean).join('-');
+    const filename = suffix ? `transactions-${suffix}.csv` : 'transactions.csv';
 
     void reply.header('Content-Type', 'text/csv; charset=utf-8');
     void reply.header('Content-Disposition', `attachment; filename="${filename}"`);

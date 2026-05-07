@@ -15,6 +15,7 @@ const listQuerySchema = z.object({
     .optional(),
   accountId: z.string().uuid().optional(),
   q: z.string().min(1).max(200).optional(),
+  tag: z.string().min(1).max(100).optional(),
   limit: z.coerce.number().int().min(1).max(500).optional(),
   offset: z.coerce.number().int().min(0).optional(),
 });
@@ -62,7 +63,7 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     if (!parsed.success) {
       return reply.code(400).send({ error: 'bad query', detail: parsed.error.flatten() });
     }
-    const { month, accountId, q, limit, offset } = parsed.data;
+    const { month, accountId, q, tag, limit, offset } = parsed.data;
     const pageSize = limit ?? PAGE_SIZE;
     const pageOffset = offset ?? 0;
 
@@ -81,6 +82,9 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
         ilike(transactions.merchant, pat),
       );
       if (orExpr) conditions.push(orExpr);
+    }
+    if (tag) {
+      conditions.push(sql`${tag} = ANY(${transactions.tags})`);
     }
 
     const where = and(...conditions);
@@ -631,6 +635,19 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
       .limit(limit ?? 10);
 
     return rows;
+  });
+
+  app.get('/transactions/tags', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const rows = await db
+      .select({ tag: sql<string>`unnest(${transactions.tags})` })
+      .from(transactions)
+      .where(eq(transactions.householdId, household.id));
+
+    const unique = [...new Set(rows.map((r) => r.tag))].filter(Boolean).sort();
+    return unique;
   });
 
   app.get('/transactions/months', async (req, reply) => {
