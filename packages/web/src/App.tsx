@@ -37,6 +37,7 @@ import {
   type Transaction,
 } from './api';
 import { BudgetStatusPanel } from './BudgetStatus';
+import { BudgetHistory } from './BudgetHistory';
 import { BillsPage } from './BillsPage';
 import { GoalsPage } from './GoalsPage';
 import { GoalsPanel } from './GoalsPanel';
@@ -769,6 +770,7 @@ function BudgetsPage() {
           isPending={upsert.isPending || remove.isPending}
         />
       )}
+      {budgetsQ.data && budgetsQ.data.length > 0 && <BudgetHistory />}
     </div>
   );
 }

@@ -459,6 +459,35 @@ export function fetchBudgets(): Promise<Budget[]> {
   return jget<Budget[]>('/api/budgets');
 }
 
+export interface BudgetHistoryMonth {
+  month: string;
+  actual: string;
+  pct: number;
+  isOver: boolean;
+}
+
+export interface BudgetHistoryRow {
+  categoryId: string;
+  categoryName: string | null;
+  categorySlug: string | null;
+  budget: string;
+  months: BudgetHistoryMonth[];
+}
+
+export function fetchBudgetHistory(
+  endMonth?: string,
+  months?: number,
+  accountId?: string,
+): Promise<BudgetHistoryRow[]> {
+  return jget<BudgetHistoryRow[]>(
+    `/api/budgets/history${buildQuery({
+      endMonth,
+      months: months ? String(months) : undefined,
+      accountId,
+    })}`,
+  );
+}
+
 export function fetchBudgetStatus(month?: string, accountId?: string): Promise<BudgetStatus[]> {
   return jget<BudgetStatus[]>(`/api/budgets/status${buildQuery({ month, accountId })}`);
 }

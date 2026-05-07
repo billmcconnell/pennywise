@@ -5,10 +5,13 @@ import type { Db } from '../db/client.js';
 import { accounts, budgets, categories, transactions } from '../db/schema.js';
 
 const statusQuerySchema = z.object({
-  month: z
-    .string()
-    .regex(/^\d{4}-\d{2}$/)
-    .optional(),
+  month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+  accountId: z.string().uuid().optional(),
+});
+
+const historyQuerySchema = z.object({
+  endMonth: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+  months: z.coerce.number().int().min(1).max(12).optional(),
   accountId: z.string().uuid().optional(),
 });
 
@@ -19,6 +22,18 @@ function monthBounds(month: string): { start: string; end: string } {
   const nextYear = m === 12 ? y! + 1 : y;
   const end = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
   return { start, end };
+}
+
+function addMonths(month: string, delta: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const total = y! * 12 + (m! - 1) + delta;
+  const ny = Math.floor(total / 12);
+  const nm = (total % 12) + 1;
+  return `${ny}-${String(nm).padStart(2, '0')}`;
+}
+
+function currentMonth(): string {
+  return new Date().toISOString().slice(0, 7);
 }
 
 export const budgetRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) => {
@@ -108,6 +123,88 @@ export const budgetRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) 
         };
       })
       .sort((a, b) => b.pct - a.pct);
+  });
+
+  // Budget history — budget vs actual across multiple months
+  app.get('/budgets/history', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const parsed = historyQuerySchema.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'bad query' });
+    const { accountId } = parsed.data;
+    const numMonths = parsed.data.months ?? 6;
+    const end = parsed.data.endMonth ?? currentMonth();
+
+    const budgetRows = await db
+      .select({
+        categoryId: budgets.categoryId,
+        categoryName: categories.name,
+        categorySlug: categories.slug,
+        amount: budgets.amount,
+      })
+      .from(budgets)
+      .leftJoin(categories, eq(budgets.categoryId, categories.id))
+      .where(eq(budgets.householdId, household.id))
+      .orderBy(categories.name);
+
+    if (budgetRows.length === 0) return [];
+
+    // Build the ordered list of months
+    const monthsList: string[] = [];
+    for (let i = numMonths - 1; i >= 0; i--) {
+      monthsList.push(addMonths(end, -i));
+    }
+
+    // Single query: actuals for the full range, grouped by (categoryId, parentId, month)
+    const rangeStart = monthBounds(monthsList[0]!).start;
+    const rangeEnd = monthBounds(monthsList[monthsList.length - 1]!).end;
+
+    const conditions = [
+      eq(transactions.householdId, household.id),
+      gt(transactions.amount, '0'),
+      gte(transactions.transactionDate, rangeStart),
+      lt(transactions.transactionDate, rangeEnd),
+    ];
+    if (accountId) conditions.push(eq(transactions.accountId, accountId));
+
+    const actuals = await db
+      .select({
+        categoryId: transactions.categoryId,
+        parentId: categories.parentId,
+        month: sql<string>`to_char(${transactions.transactionDate}::date, 'YYYY-MM')`,
+        total: sql<string>`SUM(${transactions.amount})`,
+      })
+      .from(transactions)
+      .leftJoin(categories, eq(transactions.categoryId, categories.id))
+      .where(and(...conditions))
+      .groupBy(
+        transactions.categoryId,
+        categories.parentId,
+        sql`to_char(${transactions.transactionDate}::date, 'YYYY-MM')`,
+      );
+
+    return budgetRows.map((b) => {
+      const months = monthsList.map((month) => {
+        const actual = actuals
+          .filter(
+            (a) =>
+              (a.categoryId === b.categoryId || a.parentId === b.categoryId) &&
+              a.month === month,
+          )
+          .reduce((sum, a) => sum + Number(a.total), 0);
+        const budget = Number(b.amount);
+        const pct = budget > 0 ? Math.round((actual / budget) * 100) : 0;
+        return { month, actual: actual.toFixed(2), pct, isOver: actual > budget };
+      });
+      return {
+        categoryId: b.categoryId,
+        categoryName: b.categoryName,
+        categorySlug: b.categorySlug,
+        budget: b.amount,
+        months,
+      };
+    });
   });
 
   // Upsert budget for a category
