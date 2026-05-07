@@ -320,6 +320,15 @@ export function fetchCategories(): Promise<Category[]> {
   return jget<Category[]>('/api/categories');
 }
 
+export function createCategory(body: { name: string; parentId: string }): Promise<Category> {
+  return jsend<Category>('/api/categories', 'POST', body);
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`delete category ${res.status}`);
+}
+
 export function fetchByCategory(month?: string, accountId?: string): Promise<CategoryTotal[]> {
   return jget<CategoryTotal[]>(
     `/api/transactions/by-category${buildQuery({ month, accountId })}`,

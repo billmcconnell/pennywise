@@ -53,6 +53,7 @@ import { SummaryCards } from './SummaryCards';
 import { MonthlyTrend } from './MonthlyTrend';
 import { TopMerchants } from './TopMerchants';
 import { TxnEditModal } from './TxnEditModal';
+import { CategoriesPage } from './CategoriesPage';
 
 const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'checking', label: 'Checking' },
@@ -61,7 +62,7 @@ const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'investment', label: 'Investment' },
 ];
 
-type View = 'dashboard' | 'accounts' | 'budgets' | 'goals' | 'bills' | 'rules' | 'settings';
+type View = 'dashboard' | 'accounts' | 'budgets' | 'goals' | 'bills' | 'rules' | 'categories' | 'settings';
 
 const MATCH_TYPES: { value: RuleMatchType; label: string }[] = [
   { value: 'merchant_contains', label: 'merchant contains' },
@@ -121,6 +122,9 @@ export function App() {
             <TabButton active={view === 'rules'} onClick={() => setView('rules')}>
               Rules
             </TabButton>
+            <TabButton active={view === 'categories'} onClick={() => setView('categories')}>
+              Categories
+            </TabButton>
             <TabButton active={view === 'settings'} onClick={() => setView('settings')}>
               Settings
             </TabButton>
@@ -132,6 +136,7 @@ export function App() {
         {view === 'goals' && <GoalsPage />}
         {view === 'bills' && <BillsPage />}
         {view === 'rules' && <RulesPage />}
+        {view === 'categories' && <CategoriesPage />}
         {view === 'settings' && <SettingsPage />}
       </main>
 
@@ -142,6 +147,7 @@ export function App() {
         <BottomNavButton active={view === 'goals'} onClick={() => setView('goals')} label="Goals" />
         <BottomNavButton active={view === 'bills'} onClick={() => setView('bills')} label="Bills" />
         <BottomNavButton active={view === 'rules'} onClick={() => setView('rules')} label="Rules" />
+        <BottomNavButton active={view === 'categories'} onClick={() => setView('categories')} label="Categories" />
         <BottomNavButton active={view === 'settings'} onClick={() => setView('settings')} label="Settings" />
       </nav>
     </>
