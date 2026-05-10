@@ -128,6 +128,9 @@ export function BillsPage() {
       )}
 
       {/* Suggestions */}
+      {suggestionsQ.isError && (
+        <p className="text-sm text-red-600">Failed to load bill suggestions.</p>
+      )}
       {suggestionsQ.data && suggestionsQ.data.length > 0 && (
         <SuggestionsPanel
           suggestions={suggestionsQ.data}

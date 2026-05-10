@@ -630,8 +630,13 @@ function AccountsPage() {
         <p className="text-sm text-red-600">{(create.error as Error).message}</p>
       )}
       {accountsQ.isLoading && <p className="text-zinc-500">loading…</p>}
-      {accountsQ.data && <NetWorthPanel accounts={accountsQ.data} />}
-      {accountsQ.data && (
+      {accountsQ.data && accountsQ.data.length > 0 && (
+        <NetWorthPanel accounts={accountsQ.data} />
+      )}
+      {accountsQ.data && accountsQ.data.length === 0 && (
+        <p className="text-sm text-zinc-500">No accounts yet. Add one above to get started.</p>
+      )}
+      {accountsQ.data && accountsQ.data.length > 0 && (
         <AccountsTable
           rows={accountsQ.data}
           onRename={(id, name, type) => update.mutate({ id, name, type })}

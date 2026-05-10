@@ -5,14 +5,17 @@ import { fetchBudgetHistory, type BudgetHistoryRow } from './api';
 const MONTH_OPTIONS = [3, 6, 12] as const;
 
 const monthOptions = (() => {
+  const now = new Date();
+  const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const out: string[] = [];
-  for (let y = 2024; y <= 2025; y++) {
+  for (let y = now.getFullYear() - 2; y <= now.getFullYear(); y++) {
     for (let m = 1; m <= 12; m++) {
-      if (y === 2024 && m < 12) continue;
-      out.push(`${y}-${String(m).padStart(2, '0')}`);
+      const mo = `${y}-${String(m).padStart(2, '0')}`;
+      if (mo > currentYM) break;
+      out.push(mo);
     }
   }
-  return out;
+  return out.slice(-24);
 })();
 
 function fmtMonth(ym: string): string {
@@ -40,7 +43,7 @@ function cellStyle(pct: number, actual: string): string {
 
 export function BudgetHistory() {
   const [numMonths, setNumMonths] = useState<3 | 6 | 12>(6);
-  const [endMonth, setEndMonth] = useState('2025-06');
+  const [endMonth, setEndMonth] = useState(() => monthOptions[monthOptions.length - 1] ?? '');
 
   const historyQ = useQuery({
     queryKey: ['budget-history', endMonth, numMonths],

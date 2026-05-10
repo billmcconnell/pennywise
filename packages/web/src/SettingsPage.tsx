@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchSettings, updateSettings, type HouseholdSettings } from './api';
 
 export function SettingsPage() {
   const qc = useQueryClient();
+  const [showSuccess, setShowSuccess] = useState(false);
   const settingsQ = useQuery({
     queryKey: ['settings'],
     queryFn: fetchSettings,
@@ -12,8 +13,17 @@ export function SettingsPage() {
 
   const save = useMutation({
     mutationFn: updateSettings,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['settings'] });
+      setShowSuccess(true);
+    },
   });
+
+  useEffect(() => {
+    if (!showSuccess) return;
+    const id = setTimeout(() => setShowSuccess(false), 3000);
+    return () => clearTimeout(id);
+  }, [showSuccess]);
 
   if (settingsQ.isLoading) return <p className="text-zinc-500">Loading…</p>;
   if (!settingsQ.data) return null;
@@ -23,7 +33,7 @@ export function SettingsPage() {
       initial={settingsQ.data}
       isPending={save.isPending}
       error={save.error as Error | null}
-      success={save.isSuccess}
+      success={showSuccess}
       onSave={(patch) => save.mutate(patch)}
     />
   );
