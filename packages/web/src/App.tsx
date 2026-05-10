@@ -185,6 +185,14 @@ function AppShell({ onLogout, showLogout }: { onLogout: () => void; showLogout: 
         <BottomNavButton active={view === 'rules'} onClick={() => setView('rules')} label="Rules" />
         <BottomNavButton active={view === 'categories'} onClick={() => setView('categories')} label="Categories" />
         <BottomNavButton active={view === 'settings'} onClick={() => setView('settings')} label="Settings" />
+        {showLogout && (
+          <button
+            onClick={onLogout}
+            className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs text-zinc-500"
+          >
+            Sign out
+          </button>
+        )}
       </nav>
     </>
   );
