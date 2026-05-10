@@ -553,7 +553,7 @@ function UploadForm(props: { accounts: Account[] }) {
       }}
     >
       <label className="text-sm text-zinc-700">
-        Import CSV to:{' '}
+        Import CSV / OFX / QFX to:{' '}
         <select
           required
           className="rounded border border-zinc-300 px-2 py-1"
@@ -570,7 +570,7 @@ function UploadForm(props: { accounts: Account[] }) {
       </label>
       <input
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,.ofx,.qfx,text/csv"
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         className="text-sm"
       />

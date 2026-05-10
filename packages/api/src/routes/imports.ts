@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import { accounts, categories, categorizationRules, transactions } from '../db/schema.js';
 import { parseAmexCsv } from '../ingest/amex-parser.js';
+import { parseOfx, isOfxContent } from '../ingest/ofx-parser.js';
 import { applyRules, sortRules, type RuleLike } from '../ingest/rules-engine.js';
 
 export interface ImportResult {
@@ -34,11 +35,14 @@ export const importRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) 
     if (account.length === 0) return reply.code(404).send({ error: 'account not found' });
 
     const buf = await file.toBuffer();
-    const csvText = buf.toString('utf8');
+    const filename = (file.filename ?? '').toLowerCase();
+    const isOfx = isOfxContent(buf) || filename.endsWith('.ofx') || filename.endsWith('.qfx');
 
     let parseOut;
     try {
-      parseOut = parseAmexCsv(csvText);
+      parseOut = isOfx
+        ? parseOfx(buf.toString('utf8'))
+        : parseAmexCsv(buf.toString('utf8'));
     } catch (err) {
       return reply
         .code(400)
