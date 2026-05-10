@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  applyRulesNow,
   createRule,
   fetchTransactionHistory,
   patchTransaction,
@@ -13,6 +14,8 @@ interface CategoryOption {
   label: string;
 }
 
+type Step = 'editing' | 'confirm-rule' | 'rule-saved';
+
 export function TxnEditModal(props: {
   txn: Transaction;
   categories: CategoryOption[];
@@ -24,6 +27,7 @@ export function TxnEditModal(props: {
   const [notes, setNotes] = useState(props.txn.notes ?? '');
   const [tagsInput, setTagsInput] = useState(props.txn.tags.join(', '));
   const [categoryId, setCategoryId] = useState(props.txn.categoryId ?? '');
+  const [step, setStep] = useState<Step>('editing');
 
   const historyQ = useQuery({
     queryKey: ['txn-history', props.txn.id],
@@ -73,24 +77,45 @@ export function TxnEditModal(props: {
       if (Object.keys(body).length === 0) return null;
       return patchTransaction(props.txn.id, body);
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       invalidateAll();
-      props.onClose();
+      // Category changed and a category is selected — prompt to create a rule
+      const categoryChanged = (categoryId || null) !== props.txn.categoryId;
+      if (result !== null && categoryChanged && categoryId) {
+        setStep('confirm-rule');
+      } else {
+        props.onClose();
+      }
     },
   });
 
-  const saveAsRule = useMutation({
+  // Prefer merchant name for rule pattern (more stable than description)
+  const rulePattern = merchant.trim() || description.trim();
+  const ruleMatchType = merchant.trim() ? 'merchant_contains' : 'description_contains';
+  const categoryName = props.categories.find((c) => c.id === categoryId)?.label ?? '';
+
+  const createRuleMutation = useMutation({
     mutationFn: () => {
-      if (!categoryId) throw new Error('Pick a category before saving rule');
-      if (!description.trim()) throw new Error('Description required for rule');
+      if (!categoryId) throw new Error('No category selected');
       return createRule({
-        matchType: 'description_contains',
-        pattern: description.trim(),
+        matchType: ruleMatchType,
+        pattern: rulePattern,
         categoryId,
         caseInsensitive: true,
       });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['rules'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rules'] });
+      setStep('rule-saved');
+    },
+  });
+
+  const applyRules = useMutation({
+    mutationFn: () => applyRulesNow('all_unedited'),
+    onSuccess: () => {
+      invalidateAll();
+      props.onClose();
+    },
   });
 
   return (
@@ -109,127 +134,177 @@ export function TxnEditModal(props: {
           </span>
         </header>
 
-        <div className="flex flex-col gap-3 text-sm">
-          <Field label="Description">
-            <input
-              className="rounded border border-zinc-300 px-2 py-1"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </Field>
-          <div className="text-xs text-zinc-500">
-            Original: <span className="font-mono">{props.txn.originalDescription}</span>
-          </div>
-          <Field label="Merchant">
-            <input
-              className="rounded border border-zinc-300 px-2 py-1"
-              value={merchant}
-              onChange={(e) => setMerchant(e.target.value)}
-            />
-          </Field>
-          <Field label="Category">
-            <select
-              className="rounded border border-zinc-300 px-2 py-1"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-            >
-              <option value="">—</option>
-              {props.categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Tags (comma-separated)">
-            <input
-              className="rounded border border-zinc-300 px-2 py-1"
-              value={tagsInput}
-              onChange={(e) => setTagsInput(e.target.value)}
-            />
-          </Field>
-          <Field label="Notes">
-            <textarea
-              rows={3}
-              className="rounded border border-zinc-300 px-2 py-1"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </Field>
-        </div>
-
-        {save.error && (
-          <p className="mt-3 text-sm text-red-600">{(save.error as Error).message}</p>
-        )}
-        {revert.error && (
-          <p className="mt-3 text-sm text-red-600">{(revert.error as Error).message}</p>
-        )}
-        {saveAsRule.error && (
-          <p className="mt-3 text-sm text-red-600">{(saveAsRule.error as Error).message}</p>
-        )}
-        {saveAsRule.data && (
-          <p className="mt-3 text-sm text-emerald-700">
-            Rule created. Use "Apply rules" on Rules tab to backfill.
-          </p>
-        )}
-
-        {historyQ.data && historyQ.data.length > 0 && (
-          <div className="mt-4 border-t border-zinc-100 pt-3">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">
-              Edit history
-            </p>
-            <ul className="max-h-32 overflow-y-auto space-y-1">
-              {historyQ.data.map((e) => (
-                <li key={e.id} className="text-xs text-zinc-500">
-                  <span className="font-medium capitalize text-zinc-700">{e.field}</span>
-                  {': '}
-                  <span className="line-through">{e.oldValue ?? '—'}</span>
-                  {' → '}
-                  <span>{e.newValue ?? '—'}</span>
-                  <span className="ml-2 text-zinc-400">{fmtRelative(e.editedAt)}</span>
-                </li>
-              ))}
-            </ul>
+        {step === 'confirm-rule' && (
+          <div className="flex flex-col gap-3">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <p className="mb-1 text-sm font-medium text-blue-900">Create a categorization rule?</p>
+              <p className="text-sm text-blue-700">
+                Automatically categorize future{' '}
+                <span className="font-medium">"{rulePattern}"</span> transactions as{' '}
+                <span className="font-medium">{categoryName}</span>.
+              </p>
+            </div>
+            {createRuleMutation.error && (
+              <p className="text-sm text-red-600">{(createRuleMutation.error as Error).message}</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={createRuleMutation.isPending}
+                onClick={() => createRuleMutation.mutate()}
+                className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {createRuleMutation.isPending ? 'Creating…' : 'Yes, create rule'}
+              </button>
+              <button
+                type="button"
+                onClick={props.onClose}
+                className="rounded border border-zinc-300 px-4 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+              >
+                No thanks
+              </button>
+            </div>
           </div>
         )}
 
-        <footer className="mt-4 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={saveAsRule.isPending || !categoryId || !description.trim()}
-              onClick={() => saveAsRule.mutate()}
-              className="rounded bg-zinc-200 px-3 py-1 text-sm text-zinc-800 disabled:opacity-40"
-            >
-              {saveAsRule.isPending ? 'Saving rule…' : 'Save as rule'}
-            </button>
-            <button
-              type="button"
-              disabled={revert.isPending}
-              onClick={() => revert.mutate()}
-              className="rounded border border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
-            >
-              {revert.isPending ? 'Reverting…' : 'Revert to original'}
-            </button>
+        {step === 'rule-saved' && (
+          <div className="flex flex-col gap-3">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+              <p className="mb-1 text-sm font-medium text-emerald-900">Rule created.</p>
+              <p className="text-sm text-emerald-700">
+                Apply it now to re-categorize existing unedited transactions?
+              </p>
+            </div>
+            {applyRules.error && (
+              <p className="text-sm text-red-600">{(applyRules.error as Error).message}</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={applyRules.isPending}
+                onClick={() => applyRules.mutate()}
+                className="rounded bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
+              >
+                {applyRules.isPending ? 'Applying…' : 'Apply to past transactions'}
+              </button>
+              <button
+                type="button"
+                onClick={props.onClose}
+                className="rounded border border-zinc-300 px-4 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+              >
+                Done
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={props.onClose}
-              className="rounded px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-100"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={save.isPending}
-              onClick={() => save.mutate()}
-              className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
-            >
-              {save.isPending ? 'Saving…' : 'Save'}
-            </button>
-          </div>
-        </footer>
+        )}
+
+        {step === 'editing' && (
+          <>
+            <div className="flex flex-col gap-3 text-sm">
+              <Field label="Description">
+                <input
+                  className="rounded border border-zinc-300 px-2 py-1"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </Field>
+              <div className="text-xs text-zinc-500">
+                Original: <span className="font-mono">{props.txn.originalDescription}</span>
+              </div>
+              <Field label="Merchant">
+                <input
+                  className="rounded border border-zinc-300 px-2 py-1"
+                  value={merchant}
+                  onChange={(e) => setMerchant(e.target.value)}
+                />
+              </Field>
+              <Field label="Category">
+                <select
+                  className="rounded border border-zinc-300 px-2 py-1"
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                >
+                  <option value="">—</option>
+                  {props.categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Tags (comma-separated)">
+                <input
+                  className="rounded border border-zinc-300 px-2 py-1"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                />
+              </Field>
+              <Field label="Notes">
+                <textarea
+                  rows={3}
+                  className="rounded border border-zinc-300 px-2 py-1"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </Field>
+            </div>
+
+            {save.error && (
+              <p className="mt-3 text-sm text-red-600">{(save.error as Error).message}</p>
+            )}
+            {revert.error && (
+              <p className="mt-3 text-sm text-red-600">{(revert.error as Error).message}</p>
+            )}
+
+            {historyQ.data && historyQ.data.length > 0 && (
+              <div className="mt-4 border-t border-zinc-100 pt-3">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Edit history
+                </p>
+                <ul className="max-h-32 overflow-y-auto space-y-1">
+                  {historyQ.data.map((e) => (
+                    <li key={e.id} className="text-xs text-zinc-500">
+                      <span className="font-medium capitalize text-zinc-700">{e.field}</span>
+                      {': '}
+                      <span className="line-through">{e.oldValue ?? '—'}</span>
+                      {' → '}
+                      <span>{e.newValue ?? '—'}</span>
+                      <span className="ml-2 text-zinc-400">{fmtRelative(e.editedAt)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <footer className="mt-4 flex flex-wrap items-center justify-between gap-2">
+              <button
+                type="button"
+                disabled={revert.isPending}
+                onClick={() => revert.mutate()}
+                className="rounded border border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+              >
+                {revert.isPending ? 'Reverting…' : 'Revert to original'}
+              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={props.onClose}
+                  className="rounded px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={save.isPending}
+                  onClick={() => save.mutate()}
+                  className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+                >
+                  {save.isPending ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </footer>
+          </>
+        )}
       </div>
     </div>
   );
