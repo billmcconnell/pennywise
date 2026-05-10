@@ -12,6 +12,7 @@ import {
   fetchBudgets,
   fetchBudgetStatus,
   fetchGoals,
+  fetchMe,
   fetchTags,
   fetchByCategory,
   fetchByMonth,
@@ -23,6 +24,7 @@ import {
   fetchSummary,
   fetchTopMerchants,
   fetchTransactions,
+  logout,
   patchTransactionCategory,
   updateAccount,
   updateRule,
@@ -39,6 +41,7 @@ import {
   type RuleMatchType,
   type Transaction,
 } from './api';
+import { LoginPage } from './LoginPage';
 import { BudgetStatusPanel } from './BudgetStatus';
 import { NetWorthPanel } from './NetWorthPanel';
 import { SettingsPage } from './SettingsPage';
@@ -97,6 +100,31 @@ function clientAddMonths(month: string, delta: number): string {
 }
 
 export function App() {
+  const queryClient = useQueryClient();
+  const authQuery = useQuery({ queryKey: ['auth/me'], queryFn: fetchMe, retry: false });
+
+  async function handleLogout() {
+    await logout();
+    queryClient.clear();
+    await authQuery.refetch();
+  }
+
+  if (authQuery.isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-zinc-400">
+        Loading…
+      </div>
+    );
+  }
+
+  if (authQuery.data === null) {
+    return <LoginPage />;
+  }
+
+  return <AppShell onLogout={handleLogout} showLogout={!!authQuery.data?.user} />;
+}
+
+function AppShell({ onLogout, showLogout }: { onLogout: () => void; showLogout: boolean }) {
   const [view, setView] = useState<View>('dashboard');
   return (
     <>
@@ -128,6 +156,14 @@ export function App() {
             <TabButton active={view === 'settings'} onClick={() => setView('settings')}>
               Settings
             </TabButton>
+            {showLogout && (
+              <button
+                onClick={onLogout}
+                className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
+              >
+                Sign out
+              </button>
+            )}
           </nav>
         </header>
         {view === 'dashboard' && <Dashboard />}
@@ -398,7 +434,7 @@ function Dashboard() {
             <option value="">All categories</option>
             <option value="none">Uncategorized</option>
             {(cats.data ?? [])
-              .filter((c) => c.parentId === null)
+              .filter((c) => c.parentId === null && c.name.toLowerCase() !== 'uncategorized')
               .map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}

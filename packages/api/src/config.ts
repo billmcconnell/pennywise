@@ -7,6 +7,24 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   AUTH_SECRET: z.string().min(8),
   AUTH_MODE: z.enum(['dev', 'magic-link']).default('dev'),
+  ALLOWED_EMAILS: z
+    .string()
+    .default('')
+    .transform((s) =>
+      s
+        ? s
+            .split(',')
+            .map((e) => e.trim().toLowerCase())
+            .filter(Boolean)
+        : [],
+    ),
+  APP_URL: z.string().url().default('http://localhost:3000'),
+  SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().default('Pennywise <noreply@pennywise.app>'),
   ANTHROPIC_API_KEY: z.string().optional(),
   WEB_DIST: z.string().default('../web/dist'),
 });

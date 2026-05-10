@@ -8,6 +8,7 @@ import { loadConfig } from './config.js';
 import { makeDb } from './db/client.js';
 import { makeQueue } from './queue/boss.js';
 import { devAuthPlugin } from './auth/dev-resolver.js';
+import { magicLinkPlugin } from './auth/magic-link.js';
 import { healthRoutes } from './routes/health.js';
 import { importRoutes } from './routes/imports.js';
 import { categoryRoutes } from './routes/categories.js';
@@ -39,7 +40,11 @@ async function main() {
   const queue = await makeQueue(config.DATABASE_URL);
 
   await app.register(fastifyMultipart, { limits: { fileSize: 25 * 1024 * 1024 } });
-  await app.register(devAuthPlugin);
+  if (config.AUTH_MODE === 'magic-link') {
+    await app.register(magicLinkPlugin(db, config));
+  } else {
+    await app.register(devAuthPlugin);
+  }
   await app.register(healthRoutes(db), { prefix: '/api' });
   await app.register(importRoutes(db), { prefix: '/api' });
   await app.register(categoryRoutes(db), { prefix: '/api' });

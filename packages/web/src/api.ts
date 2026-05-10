@@ -543,3 +543,29 @@ export function updateSettings(patch: Partial<HouseholdSettings>): Promise<House
 export function fetchAvailableMonths(): Promise<string[]> {
   return jget<string[]>('/api/transactions/months');
 }
+
+export interface AuthMe {
+  user: { id: string; email: string } | null;
+  household: { id: string; name: string };
+}
+
+export async function fetchMe(): Promise<AuthMe | null> {
+  const res = await fetch('/api/auth/me');
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error(`auth/me ${res.status}`);
+  return res.json() as Promise<AuthMe>;
+}
+
+export async function sendMagicLink(email: string): Promise<{ ok: boolean; devUrl?: string }> {
+  const res = await fetch('/api/auth/send', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error(`send ${res.status}`);
+  return res.json() as Promise<{ ok: boolean; devUrl?: string }>;
+}
+
+export async function logout(): Promise<void> {
+  await fetch('/api/auth/logout', { method: 'POST' });
+}

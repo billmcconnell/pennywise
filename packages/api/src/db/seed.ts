@@ -1,8 +1,8 @@
-import { eq, and } from 'drizzle-orm';
-import { SEED_CATEGORIES } from '@pennywise/shared';
+import { eq } from 'drizzle-orm';
 import { loadConfig } from '../config.js';
 import { makeDb } from './client.js';
 import { accounts, categories, households } from './schema.js';
+import { seedHousehold } from './seedHousehold.js';
 
 const DEV_HOUSEHOLD_ID = '00000000-0000-0000-0000-000000000001';
 const DEV_HOUSEHOLD_NAME = 'Dev Household';
@@ -19,49 +19,7 @@ async function seed(): Promise<void> {
       .values({ id: DEV_HOUSEHOLD_ID, name: DEV_HOUSEHOLD_NAME })
       .onConflictDoNothing({ target: households.id });
 
-    const existing = await db
-      .select({ slug: categories.slug, id: categories.id })
-      .from(categories)
-      .where(eq(categories.householdId, DEV_HOUSEHOLD_ID));
-    const bySlug = new Map(existing.map((c) => [c.slug, c.id]));
-
-    for (const seedCat of SEED_CATEGORIES.filter((c) => c.parentSlug === null)) {
-      if (bySlug.has(seedCat.slug)) continue;
-      const inserted = await db
-        .insert(categories)
-        .values({
-          householdId: DEV_HOUSEHOLD_ID,
-          slug: seedCat.slug,
-          name: seedCat.name,
-          parentId: null,
-          isSystem: true,
-        })
-        .returning({ id: categories.id });
-      const insertedId = inserted[0]?.id;
-      if (!insertedId) throw new Error(`Insert returned no id for ${seedCat.slug}`);
-      bySlug.set(seedCat.slug, insertedId);
-    }
-
-    for (const seedCat of SEED_CATEGORIES.filter((c) => c.parentSlug !== null)) {
-      if (bySlug.has(seedCat.slug)) continue;
-      const parentId = bySlug.get(seedCat.parentSlug!);
-      if (!parentId) {
-        throw new Error(`Seed parent missing for ${seedCat.slug} (parent ${seedCat.parentSlug})`);
-      }
-      const inserted = await db
-        .insert(categories)
-        .values({
-          householdId: DEV_HOUSEHOLD_ID,
-          slug: seedCat.slug,
-          name: seedCat.name,
-          parentId,
-          isSystem: true,
-        })
-        .returning({ id: categories.id });
-      const insertedId = inserted[0]?.id;
-      if (!insertedId) throw new Error(`Insert returned no id for ${seedCat.slug}`);
-      bySlug.set(seedCat.slug, insertedId);
-    }
+    await seedHousehold(db, DEV_HOUSEHOLD_ID);
 
     await db
       .insert(accounts)
@@ -77,7 +35,7 @@ async function seed(): Promise<void> {
     const total = await db
       .select()
       .from(categories)
-      .where(and(eq(categories.householdId, DEV_HOUSEHOLD_ID)));
+      .where(eq(categories.householdId, DEV_HOUSEHOLD_ID));
     console.log(
       `seed ok: household=${DEV_HOUSEHOLD_ID} account=${DEV_ACCOUNT_ID} categories=${total.length}`,
     );
