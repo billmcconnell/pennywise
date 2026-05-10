@@ -18,7 +18,7 @@ const envSchema = z.object({
             .filter(Boolean)
         : [],
     ),
-  APP_URL: z.string().url().default('http://localhost:3000'),
+  APP_URL: z.string().url().default('http://localhost:5173'),
   SESSION_TTL_DAYS: z.coerce.number().int().positive().default(30),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().optional(),
