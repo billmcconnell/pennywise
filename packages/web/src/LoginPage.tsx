@@ -7,18 +7,23 @@ export function LoginPage() {
   const [devUrl, setDevUrl] = useState<string | null>(null);
   const [error, setError] = useState('');
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function send(addr: string) {
     setState('loading');
     setError('');
+    setDevUrl(null);
     try {
-      const result = await sendMagicLink(email.trim());
+      const result = await sendMagicLink(addr.trim());
       if (result.devUrl) setDevUrl(result.devUrl);
       setState('sent');
     } catch {
       setError('Something went wrong. Please try again.');
       setState('error');
     }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    send(email);
   }
 
   return (
@@ -37,20 +42,26 @@ export function LoginPage() {
                 <p className="mb-1 text-xs font-medium text-amber-800">
                   Dev mode — no SMTP configured
                 </p>
-                <a
-                  href={devUrl}
-                  className="break-all text-xs text-amber-700 underline"
-                >
+                <a href={devUrl} className="break-all text-xs text-amber-700 underline">
                   {devUrl}
                 </a>
               </div>
             )}
-            <button
-              className="text-sm text-zinc-400 hover:text-zinc-600"
-              onClick={() => { setState('idle'); setDevUrl(null); }}
-            >
-              Use a different email
-            </button>
+            <div className="flex gap-3">
+              <button
+                className="text-sm text-zinc-500 hover:text-zinc-800"
+                onClick={() => send(email)}
+              >
+                Resend link
+              </button>
+              <span className="text-zinc-300">·</span>
+              <button
+                className="text-sm text-zinc-400 hover:text-zinc-600"
+                onClick={() => setState('idle')}
+              >
+                Use a different email
+              </button>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
