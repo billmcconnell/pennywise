@@ -1,9 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-html,
-body,
-#root {
-  height: 100%;
+:root {
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Inter Tight', 'Inter', -apple-system, sans-serif;
+  --teal-800: #0B3F3A;
+  --teal-700: #0F4B45;
+  --color-bg: #F5F6F7;
+  --color-cta: #22C55E;
+  --color-cta-hover: #16A34A;
+}
+
+html, body, #root { height: 100%; }
+
+body {
+  background-color: var(--color-bg);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display, .tabular-nums {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }

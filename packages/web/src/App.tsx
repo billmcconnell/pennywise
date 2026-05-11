@@ -49,6 +49,7 @@ import { BudgetHistory } from './BudgetHistory';
 import { BillsPage } from './BillsPage';
 import { GoalsPage } from './GoalsPage';
 import { GoalsPanel } from './GoalsPanel';
+import { BalanceHero } from './BalanceHero';
 import { CategoryTrends } from './CategoryTrends';
 import { InsightCards } from './InsightCards';
 import { SpendingPie } from './SpendingPie';
@@ -216,7 +217,7 @@ function TabButton(props: { active: boolean; onClick: () => void; children: Reac
     <button
       onClick={props.onClick}
       className={`rounded px-3 py-1 ${
-        props.active ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+        props.active ? 'bg-teal-800 text-white' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
       }`}
     >
       {props.children}
@@ -234,7 +235,7 @@ function BottomNavButton(props: {
     <button
       onClick={props.onClick}
       className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-colors ${
-        props.active ? 'text-zinc-900' : 'text-zinc-400 active:text-zinc-600'
+        props.active ? 'text-teal-800' : 'text-zinc-400 active:text-zinc-600'
       }`}
     >
       {props.children}
@@ -470,7 +471,7 @@ function Dashboard() {
             onClick={() => setFiltersOpen((o) => !o)}
             className={`ml-auto rounded border px-2.5 py-1 text-sm transition-colors ${
               activeFilterCount > 0
-                ? 'border-zinc-900 bg-zinc-900 text-white'
+                ? 'border-teal-800 bg-teal-800 text-white'
                 : 'border-zinc-300 text-zinc-600 hover:bg-zinc-50'
             }`}
           >
@@ -532,6 +533,8 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+      <BalanceHero accounts={accountsQ.data ?? []} />
 
       <UploadForm accounts={accountsQ.data ?? []} />
 
@@ -652,7 +655,7 @@ function UploadForm(props: { accounts: Account[] }) {
       <button
         type="submit"
         disabled={!accountId || !file || upload.isPending}
-        className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+        className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
       >
         {upload.isPending ? 'Uploading…' : 'Upload'}
       </button>
@@ -791,7 +794,7 @@ function NewAccountForm(props: {
       <button
         type="submit"
         disabled={props.isPending}
-        className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+        className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
       >
         Add account
       </button>
@@ -893,7 +896,7 @@ function AccountRow(props: {
             type="button"
             disabled={!dirty || archived || props.isPending}
             onClick={() => props.onRename(props.account.id, name, type)}
-            className="rounded bg-zinc-900 px-2 py-1 text-xs text-white disabled:opacity-40"
+            className="rounded bg-emerald-500 px-2 py-1 text-xs text-white hover:bg-emerald-600 disabled:opacity-40"
           >
             Save
           </button>
@@ -1037,7 +1040,7 @@ function NewBudgetForm(props: {
       <button
         type="submit"
         disabled={props.isPending || !categoryId || !amount}
-        className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+        className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
       >
         {props.isPending ? 'Saving…' : 'Add budget'}
       </button>
@@ -1109,7 +1112,7 @@ function BudgetRow(props: {
             type="button"
             disabled={!dirty || props.isPending}
             onClick={() => props.onSave(props.budget.categoryId, amount)}
-            className="rounded bg-zinc-900 px-2 py-1 text-xs text-white disabled:opacity-40"
+            className="rounded bg-emerald-500 px-2 py-1 text-xs text-white hover:bg-emerald-600 disabled:opacity-40"
           >
             Save
           </button>
@@ -1275,7 +1278,7 @@ function NewRuleForm(props: {
       <button
         type="submit"
         disabled={props.isPending}
-        className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+        className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
       >
         Add rule
       </button>
@@ -1326,7 +1329,7 @@ function ApplyControls(props: {
         type="button"
         disabled={props.isPending}
         onClick={() => props.onApply(scope, accountId || undefined)}
-        className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+        className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
       >
         {props.isPending ? 'Applying…' : 'Apply rules'}
       </button>

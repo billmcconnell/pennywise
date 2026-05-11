@@ -43,7 +43,7 @@ function Card(props: {
 }) {
   const accent = ACCENTS[props.accent ?? 'zinc'];
   return (
-    <div className="rounded border border-zinc-200 bg-white p-3">
+    <div className="rounded-xl border border-zinc-200 bg-white p-3">
       <div className="text-xs uppercase tracking-wide text-zinc-500">{props.label}</div>
       <div className={`mt-1 text-lg font-semibold tabular-nums ${accent}`}>
         {props.loading ? '…' : props.value}
