@@ -6,6 +6,9 @@ import type { AppConfig } from '../config.js';
 import { accounts, categories, categorizationRules, transactions } from '../db/schema.js';
 import { parseAmexCsv } from '../ingest/amex-parser.js';
 import { parseOfx, isOfxContent } from '../ingest/ofx-parser.js';
+import { parseUsaaCsv, isUsaaContent } from '../ingest/usaa-parser.js';
+import { parseSofiCsv, isSofiContent } from '../ingest/sofi-parser.js';
+import { parseBaskCsv, isBaskContent } from '../ingest/bask-parser.js';
 import { applyRules, sortRules, type RuleLike } from '../ingest/rules-engine.js';
 import {
   categorizeBatch,
@@ -48,9 +51,17 @@ export const importRoutes: (db: Db, config: AppConfig) => FastifyPluginAsync =
 
       let parseOut;
       try {
-        parseOut = isOfx
-          ? parseOfx(buf.toString('utf8'))
-          : parseAmexCsv(buf.toString('utf8'));
+        if (isOfx) {
+          parseOut = parseOfx(buf.toString('utf8'));
+        } else if (isUsaaContent(buf)) {
+          parseOut = parseUsaaCsv(buf.toString('utf8'));
+        } else if (isSofiContent(buf)) {
+          parseOut = parseSofiCsv(buf.toString('utf8'));
+        } else if (isBaskContent(buf)) {
+          parseOut = parseBaskCsv(buf.toString('utf8'));
+        } else {
+          parseOut = parseAmexCsv(buf.toString('utf8'));
+        }
       } catch (err) {
         return reply
           .code(400)

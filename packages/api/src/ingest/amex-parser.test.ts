@@ -110,7 +110,12 @@ describe('makeFingerprint', () => {
 describe('parseAmexCsv against real fixtures', () => {
   const fixtures = (() => {
     try {
-      return readdirSync(FIXTURES_DIR).filter((f) => f.endsWith('.csv'));
+      // Only run against Amex-formatted CSVs (skip USAA, SoFi, etc.)
+      return readdirSync(FIXTURES_DIR).filter((f) => {
+        if (!f.endsWith('.csv')) return false;
+        const head = readFileSync(path.join(FIXTURES_DIR, f), 'utf8').slice(0, 128);
+        return head.startsWith('Date,Description,Card Member');
+      });
     } catch {
       return [];
     }
