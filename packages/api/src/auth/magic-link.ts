@@ -4,7 +4,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import cookie from '@fastify/cookie';
 import nodemailer from 'nodemailer';
 import { and, eq, gt } from 'drizzle-orm';
-import { households, magicTokens, sessions, users } from '../db/schema.js';
+import { householdInvites, households, magicTokens, sessions, users } from '../db/schema.js';
 import type { AppConfig } from '../config.js';
 import type { Db } from '../db/client.js';
 import { seedHousehold } from '../db/seedHousehold.js';
@@ -176,6 +176,68 @@ export function magicLinkPlugin(db: Db, config: AppConfig) {
       }
       reply.clearCookie(COOKIE_NAME, { path: '/' });
       return { ok: true };
+    });
+
+    app.get<{ Querystring: { token?: string } }>('/api/auth/accept-invite', async (req, reply) => {
+      const { token } = req.query;
+      if (!token) return reply.code(400).send({ error: 'missing token' });
+
+      const tokenHash = hashToken(token);
+      const now = new Date();
+
+      const [invite] = await db
+        .select()
+        .from(householdInvites)
+        .where(and(eq(householdInvites.tokenHash, tokenHash), gt(householdInvites.expiresAt, now)))
+        .limit(1);
+
+      if (!invite || invite.usedAt) {
+        return reply.code(400).send({ error: 'invalid or expired invite link' });
+      }
+
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, invite.invitedEmail))
+        .limit(1);
+
+      if (existingUser && existingUser.householdId !== invite.householdId) {
+        return reply.code(409).send({ error: 'This email already has a Pennywise account' });
+      }
+
+      await db
+        .update(householdInvites)
+        .set({ usedAt: now })
+        .where(eq(householdInvites.id, invite.id));
+
+      let userId: string;
+      if (existingUser) {
+        userId = existingUser.id;
+      } else {
+        const [newUser] = await db
+          .insert(users)
+          .values({ email: invite.invitedEmail, householdId: invite.householdId })
+          .returning();
+        if (!newUser) throw new Error('failed to create user');
+        userId = newUser.id;
+      }
+
+      const sessionToken = generateToken();
+      const sessionHash = hashToken(sessionToken);
+      const sessionExpiry = new Date(Date.now() + config.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+      await db.insert(sessions).values({ userId, tokenHash: sessionHash, expiresAt: sessionExpiry });
+
+      const isProd = config.NODE_ENV === 'production';
+      reply.setCookie(COOKIE_NAME, sessionToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: isProd,
+        maxAge: config.SESSION_TTL_DAYS * 24 * 60 * 60,
+        path: '/',
+      });
+
+      return reply.redirect('/');
     });
   };
 

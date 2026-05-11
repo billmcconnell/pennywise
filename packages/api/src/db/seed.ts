@@ -1,13 +1,15 @@
 import { eq } from 'drizzle-orm';
 import { loadConfig } from '../config.js';
 import { makeDb } from './client.js';
-import { accounts, categories, households } from './schema.js';
+import { accounts, categories, households, users } from './schema.js';
 import { seedHousehold } from './seedHousehold.js';
 
 const DEV_HOUSEHOLD_ID = '00000000-0000-0000-0000-000000000001';
 const DEV_HOUSEHOLD_NAME = 'Dev Household';
 const DEV_ACCOUNT_ID = '00000000-0000-0000-0000-000000000010';
 const DEV_ACCOUNT_NAME = 'Amex (dev)';
+const DEV_USER_ID = '00000000-0000-0000-0000-000000000020';
+const DEV_USER_EMAIL = 'dev@pennywise.local';
 
 async function seed(): Promise<void> {
   const config = loadConfig();
@@ -20,6 +22,11 @@ async function seed(): Promise<void> {
       .onConflictDoNothing({ target: households.id });
 
     await seedHousehold(db, DEV_HOUSEHOLD_ID);
+
+    await db
+      .insert(users)
+      .values({ id: DEV_USER_ID, email: DEV_USER_EMAIL, householdId: DEV_HOUSEHOLD_ID })
+      .onConflictDoNothing({ target: users.id });
 
     await db
       .insert(accounts)

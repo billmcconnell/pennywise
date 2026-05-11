@@ -569,3 +569,50 @@ export async function sendMagicLink(email: string): Promise<{ ok: boolean; devUr
 export async function logout(): Promise<void> {
   await fetch('/api/auth/logout', { method: 'POST' });
 }
+
+export interface HouseholdMember {
+  id: string;
+  email: string;
+  joinedAt: string;
+}
+
+export interface HouseholdInvite {
+  id: string;
+  invitedEmail: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export function fetchMembers(): Promise<HouseholdMember[]> {
+  return jget<HouseholdMember[]>('/api/household/members');
+}
+
+export async function removeMember(userId: string): Promise<void> {
+  const res = await fetch(`/api/household/members/${userId}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `delete ${res.status}`);
+  }
+}
+
+export function fetchInvites(): Promise<HouseholdInvite[]> {
+  return jget<HouseholdInvite[]>('/api/household/invites');
+}
+
+export async function createInvite(email: string): Promise<{ token: string; email: string; expiresAt: string }> {
+  const res = await fetch('/api/household/invite', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `invite ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function revokeInvite(inviteId: string): Promise<void> {
+  const res = await fetch(`/api/household/invites/${inviteId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`revoke ${res.status}`);
+}

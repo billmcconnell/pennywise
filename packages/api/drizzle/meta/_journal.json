@@ -64,6 +64,13 @@
       "when": 1778453621266,
       "tag": "0008_rapid_mysterio",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1778509237242,
+      "tag": "0009_friendly_rictor",
+      "breakpoints": true
     }
   ]
 }

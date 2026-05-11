@@ -272,6 +272,27 @@ export const sessions = pgTable(
   ],
 );
 
+export const householdInvites = pgTable(
+  'household_invites',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    householdId: uuid('household_id')
+      .notNull()
+      .references(() => households.id, { onDelete: 'cascade' }),
+    invitedEmail: text('invited_email').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('household_invites_token_uq').on(t.tokenHash),
+    index('household_invites_household_idx').on(t.householdId),
+    index('household_invites_email_idx').on(t.invitedEmail),
+  ],
+);
+
 export const categorizationRules = pgTable(
   'categorization_rules',
   {
