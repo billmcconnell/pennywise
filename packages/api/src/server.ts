@@ -47,7 +47,7 @@ async function main() {
     await app.register(devAuthPlugin);
   }
   await app.register(healthRoutes(db), { prefix: '/api' });
-  await app.register(importRoutes(db), { prefix: '/api' });
+  await app.register(importRoutes(db, config), { prefix: '/api' });
   await app.register(categoryRoutes(db), { prefix: '/api' });
   await app.register(transactionRoutes(db), { prefix: '/api' });
   await app.register(accountRoutes(db), { prefix: '/api' });
