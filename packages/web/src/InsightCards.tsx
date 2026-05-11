@@ -27,7 +27,26 @@ function Card({ label, headline, sub, accent }: CardProps) {
   );
 }
 
-export function InsightCards({ data }: { data: InsightsData }) {
+function SkeletonCard() {
+  return (
+    <div className="animate-pulse rounded border border-zinc-200 border-l-4 border-l-zinc-200 p-4">
+      <div className="mb-2 h-2.5 w-20 rounded bg-zinc-200" />
+      <div className="h-3.5 w-4/5 rounded bg-zinc-200" />
+      <div className="mt-1.5 h-2.5 w-1/2 rounded bg-zinc-200" />
+    </div>
+  );
+}
+
+export function InsightCards({ data, isLoading }: { data: InsightsData | undefined; isLoading?: boolean }) {
+  if (isLoading || !data) {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
+      </div>
+    );
+  }
   const { uncategorizedCount, topCategory, largestRecurring } = data;
 
   const uncatCard = (() => {

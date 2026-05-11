@@ -537,7 +537,7 @@ function Dashboard() {
 
       <SummaryCards summary={summaryQ.data} isLoading={summaryQ.isLoading} />
 
-      {insightsQ.data && <InsightCards data={insightsQ.data} />}
+      <InsightCards data={insightsQ.data} isLoading={insightsQ.isLoading} />
 
       {budgetStatusQ.data && budgetStatusQ.data.length > 0 && (
         <BudgetStatusPanel data={budgetStatusQ.data} />
