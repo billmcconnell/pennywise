@@ -124,43 +124,34 @@ export function App() {
   return <AppShell onLogout={handleLogout} showLogout={!!authQuery.data?.user} />;
 }
 
+const MORE_VIEWS: View[] = ['goals', 'bills', 'rules', 'categories'];
+
 function AppShell({ onLogout, showLogout }: { onLogout: () => void; showLogout: boolean }) {
   const [view, setView] = useState<View>('dashboard');
+  const [moreOpen, setMoreOpen] = useState(false);
+  const isMoreActive = MORE_VIEWS.includes(view);
+
+  function navigate(v: View) {
+    setView(v);
+    setMoreOpen(false);
+  }
+
   return (
     <>
-      <main className="mx-auto flex max-w-6xl flex-col gap-4 p-3 pb-20 sm:p-6 md:pb-6">
+      <main className="mx-auto flex max-w-6xl flex-col gap-4 p-3 pb-24 sm:p-6 md:pb-6">
         <header className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Pennywise</h1>
+          <h1 className="text-xl font-semibold sm:text-2xl">Pennywise</h1>
           <nav className="hidden gap-2 text-sm md:flex">
-            <TabButton active={view === 'dashboard'} onClick={() => setView('dashboard')}>
-              Dashboard
-            </TabButton>
-            <TabButton active={view === 'accounts'} onClick={() => setView('accounts')}>
-              Accounts
-            </TabButton>
-            <TabButton active={view === 'budgets'} onClick={() => setView('budgets')}>
-              Budgets
-            </TabButton>
-            <TabButton active={view === 'goals'} onClick={() => setView('goals')}>
-              Goals
-            </TabButton>
-            <TabButton active={view === 'bills'} onClick={() => setView('bills')}>
-              Bills
-            </TabButton>
-            <TabButton active={view === 'rules'} onClick={() => setView('rules')}>
-              Rules
-            </TabButton>
-            <TabButton active={view === 'categories'} onClick={() => setView('categories')}>
-              Categories
-            </TabButton>
-            <TabButton active={view === 'settings'} onClick={() => setView('settings')}>
-              Settings
-            </TabButton>
+            <TabButton active={view === 'dashboard'} onClick={() => navigate('dashboard')}>Dashboard</TabButton>
+            <TabButton active={view === 'accounts'} onClick={() => navigate('accounts')}>Accounts</TabButton>
+            <TabButton active={view === 'budgets'} onClick={() => navigate('budgets')}>Budgets</TabButton>
+            <TabButton active={view === 'goals'} onClick={() => navigate('goals')}>Goals</TabButton>
+            <TabButton active={view === 'bills'} onClick={() => navigate('bills')}>Bills</TabButton>
+            <TabButton active={view === 'rules'} onClick={() => navigate('rules')}>Rules</TabButton>
+            <TabButton active={view === 'categories'} onClick={() => navigate('categories')}>Categories</TabButton>
+            <TabButton active={view === 'settings'} onClick={() => navigate('settings')}>Settings</TabButton>
             {showLogout && (
-              <button
-                onClick={onLogout}
-                className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
-              >
+              <button onClick={onLogout} className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800">
                 Sign out
               </button>
             )}
@@ -176,24 +167,46 @@ function AppShell({ onLogout, showLogout }: { onLogout: () => void; showLogout: 
         {view === 'settings' && <SettingsPage />}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-zinc-200 bg-white md:hidden">
-        <BottomNavButton active={view === 'dashboard'} onClick={() => setView('dashboard')} label="Dashboard" />
-        <BottomNavButton active={view === 'accounts'} onClick={() => setView('accounts')} label="Accounts" />
-        <BottomNavButton active={view === 'budgets'} onClick={() => setView('budgets')} label="Budgets" />
-        <BottomNavButton active={view === 'goals'} onClick={() => setView('goals')} label="Goals" />
-        <BottomNavButton active={view === 'bills'} onClick={() => setView('bills')} label="Bills" />
-        <BottomNavButton active={view === 'rules'} onClick={() => setView('rules')} label="Rules" />
-        <BottomNavButton active={view === 'categories'} onClick={() => setView('categories')} label="Categories" />
-        <BottomNavButton active={view === 'settings'} onClick={() => setView('settings')} label="Settings" />
-        {showLogout && (
-          <button
-            onClick={onLogout}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs text-zinc-500"
-          >
-            Sign out
-          </button>
-        )}
+      {/* Mobile bottom nav — 4 primary + More */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-zinc-200 bg-white md:hidden">
+        <div className="flex">
+          <BottomNavButton active={view === 'dashboard'} onClick={() => navigate('dashboard')} label="Dashboard"><IconHome /></BottomNavButton>
+          <BottomNavButton active={view === 'accounts'} onClick={() => navigate('accounts')} label="Accounts"><IconCard /></BottomNavButton>
+          <BottomNavButton active={view === 'budgets'} onClick={() => navigate('budgets')} label="Budgets"><IconBars /></BottomNavButton>
+          <BottomNavButton active={view === 'settings'} onClick={() => navigate('settings')} label="Settings"><IconCog /></BottomNavButton>
+          <BottomNavButton active={isMoreActive || moreOpen} onClick={() => setMoreOpen((o) => !o)} label="More"><IconEllipsis /></BottomNavButton>
+        </div>
       </nav>
+
+      {/* More sheet */}
+      {moreOpen && (
+        <>
+          <div className="fixed inset-0 z-50 md:hidden" onClick={() => setMoreOpen(false)} />
+          <div className="fixed bottom-14 left-0 right-0 z-50 rounded-t-2xl border-t border-zinc-200 bg-white shadow-xl md:hidden">
+            <div className="flex flex-col py-1">
+              {MORE_VIEWS.map((v) => (
+                <button
+                  key={v}
+                  onClick={() => navigate(v)}
+                  className={`px-6 py-3.5 text-left text-sm capitalize ${
+                    view === v ? 'bg-zinc-100 font-medium text-zinc-900' : 'text-zinc-700 active:bg-zinc-50'
+                  }`}
+                >
+                  {v.charAt(0).toUpperCase() + v.slice(1)}
+                </button>
+              ))}
+              {showLogout && (
+                <button
+                  onClick={() => { setMoreOpen(false); onLogout(); }}
+                  className="mt-1 border-t border-zinc-100 px-6 py-3.5 text-left text-sm text-zinc-500 active:bg-zinc-50"
+                >
+                  Sign out
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }
@@ -211,16 +224,62 @@ function TabButton(props: { active: boolean; onClick: () => void; children: Reac
   );
 }
 
-function BottomNavButton(props: { active: boolean; onClick: () => void; label: string }) {
+function BottomNavButton(props: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={props.onClick}
-      className={`flex flex-1 items-center justify-center py-3 text-sm font-medium transition-colors ${
-        props.active ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-500'
+      className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-colors ${
+        props.active ? 'text-zinc-900' : 'text-zinc-400 active:text-zinc-600'
       }`}
     >
-      {props.label}
+      {props.children}
+      <span className="text-[10px] leading-tight">{props.label}</span>
     </button>
+  );
+}
+
+function IconHome() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fillRule="evenodd" d="M9.293 2.293a1 1 0 011.414 0l7 7A1 1 0 0117 11h-1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-3a1 1 0 00-1-1H9a1 1 0 00-1 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-6H3a1 1 0 01-.707-1.707l7-7z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+function IconCard() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path d="M2.5 4A1.5 1.5 0 001 5.5V6h18v-.5A1.5 1.5 0 0017.5 4h-15zM19 8.5H1v6A1.5 1.5 0 002.5 16h15a1.5 1.5 0 001.5-1.5v-6zM3 13.25a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5a.75.75 0 01-.75-.75zm5.25-.75a.75.75 0 000 1.5h2.5a.75.75 0 000-1.5h-2.5z" />
+    </svg>
+  );
+}
+
+function IconBars() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path d="M12 3a1 1 0 00-1 1v12a1 1 0 001 1h2a1 1 0 001-1V4a1 1 0 00-1-1h-2zM6.5 8a1 1 0 00-1 1v7a1 1 0 001 1h2a1 1 0 001-1V9a1 1 0 00-1-1h-2zM2 13a1 1 0 011-1h2a1 1 0 011 1v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3z" />
+    </svg>
+  );
+}
+
+function IconCog() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+function IconEllipsis() {
+  return (
+    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+    </svg>
   );
 }
 
@@ -231,6 +290,7 @@ function Dashboard() {
   const search = useDebounce(searchInput, 300);
   const [tag, setTag] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const qc = useQueryClient();
 
@@ -373,97 +433,104 @@ function Dashboard() {
     return `/api/exports/transactions.csv?${p.toString()}`;
   }, [month, accountId, search, tag, categoryFilter]);
 
+  const activeFilterCount = (tag ? 1 : 0) + (categoryFilter ? 1 : 0);
+
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-        <label className="text-sm text-zinc-600">
-          Month:{' '}
-          <select
-            className="rounded border border-zinc-300 px-2 py-1"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-          >
-            {monthOptions.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm text-zinc-600">
-          Account:{' '}
-          <select
-            className="rounded border border-zinc-300 px-2 py-1"
-            value={accountId}
-            onChange={(e) => setAccountId(e.target.value)}
-          >
-            <option value="">All accounts</option>
-            {(accountsQ.data ?? []).map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm text-zinc-600">
-          Search:{' '}
-          <input
-            type="search"
-            placeholder="description / merchant"
-            className="rounded border border-zinc-300 px-2 py-1"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-        </label>
-        {(tagsQ.data ?? []).length > 0 && (
-          <label className="text-sm text-zinc-600">
-            Tag:{' '}
+      <div className="flex flex-col gap-2">
+        {/* Row 1: Month + Account + Filters toggle */}
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1 text-sm text-zinc-600">
+            <span className="shrink-0">Month</span>
             <select
-              className="rounded border border-zinc-300 px-2 py-1"
-              value={tag}
-              onChange={(e) => setTag(e.target.value)}
+              className="rounded border border-zinc-300 px-2 py-1 text-sm"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
             >
-              <option value="">All tags</option>
-              {(tagsQ.data ?? []).map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
+              {monthOptions.map((m) => (
+                <option key={m} value={m}>{m}</option>
               ))}
             </select>
           </label>
-        )}
-        <label className="text-sm text-zinc-600">
-          Category:{' '}
-          <select
-            className="rounded border border-zinc-300 px-2 py-1"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
-            <option value="">All categories</option>
-            <option value="none">Uncategorized</option>
-            {(cats.data ?? [])
-              .filter((c) => c.parentId === null && c.name.toLowerCase() !== 'uncategorized')
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
+          <label className="flex items-center gap-1 text-sm text-zinc-600">
+            <span className="shrink-0">Account</span>
+            <select
+              className="rounded border border-zinc-300 px-2 py-1 text-sm"
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+            >
+              <option value="">All</option>
+              {(accountsQ.data ?? []).map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
               ))}
-          </select>
-        </label>
-        <div className="ml-auto flex gap-2">
-          <a
-            href={csvHref}
-            className="rounded border border-zinc-300 px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-100"
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((o) => !o)}
+            className={`ml-auto rounded border px-2.5 py-1 text-sm transition-colors ${
+              activeFilterCount > 0
+                ? 'border-zinc-900 bg-zinc-900 text-white'
+                : 'border-zinc-300 text-zinc-600 hover:bg-zinc-50'
+            }`}
           >
-            Export CSV
-          </a>
-          <a
-            href="/api/exports/backup.json"
-            className="rounded border border-zinc-300 px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-100"
-          >
-            Backup JSON
-          </a>
+            Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </button>
         </div>
+
+        {/* Row 2: Search — always visible */}
+        <input
+          type="search"
+          placeholder="Search description / merchant"
+          className="w-full rounded border border-zinc-300 px-3 py-1.5 text-sm"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+
+        {/* Row 3: Extra filters + export — collapsible */}
+        {filtersOpen && (
+          <div className="flex flex-wrap items-center gap-2 rounded border border-zinc-200 bg-zinc-50 p-2">
+            {(tagsQ.data ?? []).length > 0 && (
+              <label className="flex items-center gap-1 text-xs text-zinc-600">
+                <span>Tag</span>
+                <select
+                  className="rounded border border-zinc-300 px-2 py-1 text-xs"
+                  value={tag}
+                  onChange={(e) => setTag(e.target.value)}
+                >
+                  <option value="">All tags</option>
+                  {(tagsQ.data ?? []).map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className="flex items-center gap-1 text-xs text-zinc-600">
+              <span>Category</span>
+              <select
+                className="rounded border border-zinc-300 px-2 py-1 text-xs"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                <option value="">All categories</option>
+                <option value="none">Uncategorized</option>
+                {(cats.data ?? [])
+                  .filter((c) => c.parentId === null && c.name.toLowerCase() !== 'uncategorized')
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+              </select>
+            </label>
+            <div className="ml-auto flex gap-2">
+              <a href={csvHref} className="rounded border border-zinc-300 px-2.5 py-1 text-xs text-zinc-700 hover:bg-zinc-100">
+                Export CSV
+              </a>
+              <a href="/api/exports/backup.json" className="rounded border border-zinc-300 px-2.5 py-1 text-xs text-zinc-700 hover:bg-zinc-100">
+                Backup
+              </a>
+            </div>
+          </div>
+        )}
       </div>
 
       <UploadForm accounts={accountsQ.data ?? []} />
