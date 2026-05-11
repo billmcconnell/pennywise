@@ -547,7 +547,7 @@ function Dashboard() {
         <GoalsPanel goals={goalsQ.data} />
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {byCat.data && cats.data && <SpendingPie totals={byCat.data} categories={cats.data} />}
         {byMonthQ.data && <MonthlyTrend data={byMonthQ.data} months={chartMonths} />}
       </div>

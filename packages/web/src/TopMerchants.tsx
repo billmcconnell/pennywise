@@ -11,9 +11,9 @@ import {
 import type { MerchantTotal } from './api';
 
 function useIsNarrow() {
-  const [narrow, setNarrow] = useState(() => window.innerWidth < 640);
+  const [narrow, setNarrow] = useState(() => window.innerWidth < 768);
   useEffect(() => {
-    const fn = () => setNarrow(window.innerWidth < 640);
+    const fn = () => setNarrow(window.innerWidth < 768);
     window.addEventListener('resize', fn, { passive: true });
     return () => window.removeEventListener('resize', fn);
   }, []);

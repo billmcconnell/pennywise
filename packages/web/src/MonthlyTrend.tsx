@@ -22,7 +22,7 @@ export function MonthlyTrend(props: { data: MonthlyPoint[]; months?: number }) {
   return (
     <div className="rounded border border-zinc-200 p-4">
       <h2 className="mb-2 text-lg font-medium">Income vs expenses ({props.months ?? 12} months)</h2>
-      <div className="h-[220px] w-full sm:h-[280px]">
+      <div className="h-[220px] w-full sm:h-[280px] md:h-[340px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
