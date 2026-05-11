@@ -19,6 +19,7 @@ import {
   fetchCategories,
   fetchCategoryTrends,
   fetchInsights,
+  fetchForecast,
   fetchRules,
   fetchSettings,
   fetchSummary,
@@ -50,6 +51,7 @@ import { BillsPage } from './BillsPage';
 import { GoalsPage } from './GoalsPage';
 import { GoalsPanel } from './GoalsPanel';
 import { BalanceHero } from './BalanceHero';
+import { CashflowForecast } from './CashflowForecast';
 import { CategoryTrends } from './CategoryTrends';
 import { InsightCards } from './InsightCards';
 import { SpendingPie } from './SpendingPie';
@@ -401,6 +403,12 @@ function Dashboard() {
     staleTime: 30 * 1000,
   });
 
+  const forecastQ = useQuery({
+    queryKey: ['forecast', month, accountId],
+    queryFn: () => fetchForecast(month, accountId || undefined),
+    staleTime: 30 * 1000,
+  });
+
   const budgetStatusQ = useQuery({
     queryKey: ['budget-status', month, accountId],
     queryFn: () => fetchBudgetStatus(month, accountId || undefined),
@@ -541,6 +549,8 @@ function Dashboard() {
       <SummaryCards summary={summaryQ.data} isLoading={summaryQ.isLoading} />
 
       <InsightCards data={insightsQ.data} isLoading={insightsQ.isLoading} />
+
+      <CashflowForecast data={forecastQ.data} isLoading={forecastQ.isLoading} />
 
       {budgetStatusQ.data && budgetStatusQ.data.length > 0 && (
         <BudgetStatusPanel data={budgetStatusQ.data} />

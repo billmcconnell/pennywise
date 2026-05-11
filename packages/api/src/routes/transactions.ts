@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { alias } from 'drizzle-orm/pg-core';
-import { and, count, desc, eq, gte, ilike, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, ilike, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { transactionUpdateSchema } from '@pennywise/shared';
 import type { Db } from '../db/client.js';
@@ -606,6 +606,129 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     }
 
     return { uncategorizedCount, topCategory, largestRecurring };
+  });
+
+  app.get('/transactions/forecast', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const parsed = listQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'bad query', detail: parsed.error.flatten() });
+    }
+
+    const now = new Date();
+    const currentMonth =
+      parsed.data.month ??
+      `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    const { accountId } = parsed.data;
+
+    // Look back 3 months from the current month
+    const { start: threeStart } = monthBounds(addMonths(currentMonth, -2));
+    const { end: curEnd } = monthBounds(currentMonth);
+
+    const baseConditions = [eq(transactions.householdId, household.id)];
+    if (accountId) baseConditions.push(eq(transactions.accountId, accountId));
+
+    // Monthly totals per description over the last 3 months
+    const monthlyRows = await db
+      .select({
+        description: transactions.description,
+        month: sql<string>`to_char(${transactions.transactionDate}, 'YYYY-MM')`,
+        monthlyTotal: sql<string>`sum(${transactions.amount})`,
+      })
+      .from(transactions)
+      .where(
+        and(
+          ...baseConditions,
+          gte(transactions.transactionDate, threeStart),
+          lt(transactions.transactionDate, curEnd),
+        ),
+      )
+      .groupBy(transactions.description, sql`to_char(${transactions.transactionDate}, 'YYYY-MM')`);
+
+    // Find descriptions recurring in 2+ of the 3 months
+    const descMonths = new Map<string, number[]>();
+    for (const r of monthlyRows) {
+      const arr = descMonths.get(r.description) ?? [];
+      arr.push(Number(r.monthlyTotal));
+      descMonths.set(r.description, arr);
+    }
+
+    const recurring = [...descMonths.entries()]
+      .filter(([, totals]) => totals.length >= 2)
+      .map(([description, totals]) => ({
+        description,
+        avgMonthlyAmount: totals.reduce((s, v) => s + v, 0) / totals.length,
+        monthCount: totals.length,
+      }));
+
+    if (recurring.length === 0) {
+      return {
+        projectedExpenses: '0.00',
+        projectedIncome: '0.00',
+        projectedNet: '0.00',
+        recurringItems: [],
+        basedOnMonths: 3,
+      };
+    }
+
+    // Get the most recent categoryId for each recurring description
+    const descList = recurring.map((r) => r.description);
+    const catRows = await db
+      .selectDistinctOn([transactions.description], {
+        description: transactions.description,
+        categoryId: transactions.categoryId,
+      })
+      .from(transactions)
+      .where(and(eq(transactions.householdId, household.id), inArray(transactions.description, descList)))
+      .orderBy(transactions.description, desc(transactions.transactionDate));
+
+    const catIdByDesc = new Map(catRows.map((r) => [r.description, r.categoryId]));
+
+    // Fetch category names
+    const catIds = [...new Set(catRows.map((r) => r.categoryId).filter(Boolean))] as string[];
+    const catNameRows =
+      catIds.length > 0
+        ? await db
+            .select({ id: categories.id, name: categories.name, slug: categories.slug })
+            .from(categories)
+            .where(inArray(categories.id, catIds))
+        : [];
+    const catById = new Map(catNameRows.map((c) => [c.id, c]));
+
+    // Build items and sum projections
+    let projectedExpenses = 0;
+    let projectedIncome = 0;
+
+    const recurringItems = recurring
+      .sort((a, b) => Math.abs(b.avgMonthlyAmount) - Math.abs(a.avgMonthlyAmount))
+      .map((r) => {
+        const catId = catIdByDesc.get(r.description) ?? null;
+        const cat = catId ? catById.get(catId) : null;
+        if (r.avgMonthlyAmount > 0) {
+          projectedExpenses += r.avgMonthlyAmount;
+        } else {
+          projectedIncome += Math.abs(r.avgMonthlyAmount);
+        }
+        return {
+          description: r.description,
+          avgMonthlyAmount: r.avgMonthlyAmount.toFixed(2),
+          monthCount: r.monthCount,
+          categoryName: cat?.name ?? null,
+          categorySlug: cat?.slug ?? null,
+        };
+      });
+
+    const projectedNet = projectedIncome - projectedExpenses;
+
+    return {
+      projectedExpenses: projectedExpenses.toFixed(2),
+      projectedIncome: projectedIncome.toFixed(2),
+      projectedNet: projectedNet.toFixed(2),
+      recurringItems,
+      basedOnMonths: 3,
+    };
   });
 
   app.get('/transactions/top-merchants', async (req, reply) => {

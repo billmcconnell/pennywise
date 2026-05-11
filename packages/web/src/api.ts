@@ -119,6 +119,20 @@ export interface InsightsData {
   } | null;
 }
 
+export interface ForecastData {
+  projectedExpenses: string;
+  projectedIncome: string;
+  projectedNet: string;
+  recurringItems: {
+    description: string;
+    avgMonthlyAmount: string;
+    monthCount: number;
+    categoryName: string | null;
+    categorySlug: string | null;
+  }[];
+  basedOnMonths: number;
+}
+
 export interface CategoryTrendPoint {
   month: string;
   slug: string;
@@ -353,6 +367,10 @@ export function fetchTransactionHistory(id: string): Promise<TransactionEdit[]> 
 
 export function fetchInsights(month?: string, accountId?: string): Promise<InsightsData> {
   return jget<InsightsData>(`/api/transactions/insights${buildQuery({ month, accountId })}`);
+}
+
+export function fetchForecast(month?: string, accountId?: string): Promise<ForecastData> {
+  return jget<ForecastData>(`/api/transactions/forecast${buildQuery({ month, accountId })}`);
 }
 
 export function fetchCategoryTrends(
