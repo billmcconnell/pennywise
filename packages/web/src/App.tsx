@@ -131,12 +131,17 @@ export function App() {
 const MORE_VIEWS: View[] = ['goals', 'bills', 'rules', 'categories'];
 
 function AppShell({ onLogout, showLogout }: { onLogout: () => void; showLogout: boolean }) {
-  const [view, setView] = useState<View>('dashboard');
+  const [view, setView] = useState<View>(() => {
+    const hash = window.location.hash.slice(1) as View;
+    const VALID: View[] = ['dashboard', 'accounts', 'budgets', 'goals', 'bills', 'rules', 'categories', 'settings'];
+    return VALID.includes(hash) ? hash : 'dashboard';
+  });
   const [moreOpen, setMoreOpen] = useState(false);
   const isMoreActive = MORE_VIEWS.includes(view);
 
   function navigate(v: View) {
     setView(v);
+    window.location.hash = v;
     setMoreOpen(false);
   }
 
@@ -355,8 +360,12 @@ function NavIconCog() {
 }
 
 function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
-  const [month, setMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
-  const [accountId, setAccountId] = useState<string>('');
+  const [month, setMonth] = useState<string>(
+    () => localStorage.getItem('dashboard:month') ?? new Date().toISOString().slice(0, 7)
+  );
+  const [accountId, setAccountId] = useState<string>(
+    () => localStorage.getItem('dashboard:accountId') ?? ''
+  );
   const [searchInput, setSearchInput] = useState<string>('');
   const search = useDebounce(searchInput, 300);
   const [tag, setTag] = useState<string>('');
@@ -364,6 +373,9 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const qc = useQueryClient();
+
+  useEffect(() => { localStorage.setItem('dashboard:month', month); }, [month]);
+  useEffect(() => { localStorage.setItem('dashboard:accountId', accountId); }, [accountId]);
 
   const accountsQ = useQuery({
     queryKey: ['accounts'],
@@ -393,6 +405,11 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
   useEffect(() => {
     if (hasAppliedDefault.current) return;
     if (!settingsQ.data || !availableMonthsQ.data) return;
+    // If the user has a saved preference, honour it and don't override
+    if (localStorage.getItem('dashboard:month')) {
+      hasAppliedDefault.current = true;
+      return;
+    }
     hasAppliedDefault.current = true;
 
     const { defaultPeriod } = settingsQ.data;
