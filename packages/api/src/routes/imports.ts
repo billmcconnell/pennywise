@@ -1,9 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { FastifyPluginAsync } from 'fastify';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import type { AppConfig } from '../config.js';
-import { accounts, categories, categorizationRules, transactions } from '../db/schema.js';
+import { accounts, categories, categorizationRules, transactionEdits, transactions } from '../db/schema.js';
 import { parseAmexCsv } from '../ingest/amex-parser.js';
 import { parseOfx, isOfxContent } from '../ingest/ofx-parser.js';
 import { parseUsaaCsv, isUsaaContent } from '../ingest/usaa-parser.js';
@@ -14,6 +14,7 @@ import {
   categorizeBatch,
   LLM_APPLY_THRESHOLD,
   LLM_RULE_THRESHOLD,
+  type FeedbackExample,
 } from '../ingest/llm-categorizer.js';
 
 export interface ImportResult {
@@ -136,6 +137,38 @@ export const importRoutes: (db: Db, config: AppConfig) => FastifyPluginAsync =
                 ),
               );
 
+            // Load recent category corrections as few-shot examples
+            const correctionRows = await db
+              .select({
+                pattern: sql<string>`coalesce(nullif(${transactions.merchant}, ''), ${transactions.description})`,
+                categorySlug: categories.slug,
+                categoryName: categories.name,
+              })
+              .from(transactionEdits)
+              .innerJoin(transactions, eq(transactionEdits.transactionId, transactions.id))
+              .innerJoin(categories, eq(transactions.categoryId, categories.id))
+              .where(
+                and(
+                  eq(transactionEdits.householdId, household.id),
+                  eq(transactionEdits.field, 'category'),
+                  isNull(categories.parentId),
+                  isNull(categories.archivedAt),
+                ),
+              )
+              .orderBy(desc(transactionEdits.editedAt))
+              .limit(200);
+
+            const seen = new Set<string>();
+            const feedbackExamples: FeedbackExample[] = [];
+            for (const r of correctionRows) {
+              const key = `${r.pattern}\0${r.categorySlug}`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                feedbackExamples.push(r);
+                if (feedbackExamples.length >= 30) break;
+              }
+            }
+
             const client = new Anthropic({ apiKey: config.ANTHROPIC_API_KEY });
             const llmResults = await categorizeBatch(
               client,
@@ -146,6 +179,7 @@ export const importRoutes: (db: Db, config: AppConfig) => FastifyPluginAsync =
                 amount: p.row.amount,
               })),
               topCats,
+              feedbackExamples.length > 0 ? feedbackExamples : undefined,
             );
 
             const catBySlug = new Map(topCats.map((c) => [c.slug, c]));

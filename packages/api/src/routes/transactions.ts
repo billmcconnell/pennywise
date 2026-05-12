@@ -4,7 +4,7 @@ import { and, count, desc, eq, gte, ilike, inArray, isNull, lt, or, sql } from '
 import { z } from 'zod';
 import { transactionUpdateSchema } from '@pennywise/shared';
 import type { Db } from '../db/client.js';
-import { accounts, categories, transactionEdits, transactions } from '../db/schema.js';
+import { accounts, categories, categorizationRules, transactionEdits, transactions } from '../db/schema.js';
 
 const PAGE_SIZE = 50;
 
@@ -53,6 +53,65 @@ function addMonths(month: string, delta: number): string {
   const ny = Math.floor(total / 12);
   const nm = (total % 12) + 1;
   return `${ny}-${String(nm).padStart(2, '0')}`;
+}
+
+async function maybePromoteToRule(
+  db: Db,
+  householdId: string,
+  transactionId: string,
+  newCategoryId: string,
+): Promise<void> {
+  const txnRow = await db
+    .select({ merchant: transactions.merchant, description: transactions.description })
+    .from(transactions)
+    .where(and(eq(transactions.id, transactionId), eq(transactions.householdId, householdId)))
+    .limit(1);
+  if (txnRow.length === 0) return;
+
+  const { merchant, description } = txnRow[0]!;
+  const matchTerm = merchant?.trim() || description;
+  const matchType = merchant?.trim() ? 'merchant_contains' : 'description_contains';
+  if (!matchTerm) return;
+
+  const countRows = await db
+    .select({ n: sql<number>`cast(count(distinct ${transactionEdits.transactionId}) as int)` })
+    .from(transactionEdits)
+    .innerJoin(transactions, eq(transactionEdits.transactionId, transactions.id))
+    .where(
+      and(
+        eq(transactionEdits.householdId, householdId),
+        eq(transactionEdits.field, 'category'),
+        eq(transactions.categoryId, newCategoryId),
+        matchType === 'merchant_contains'
+          ? eq(transactions.merchant, matchTerm)
+          : eq(transactions.description, matchTerm),
+      ),
+    );
+  if ((countRows[0]?.n ?? 0) < 2) return;
+
+  const existing = await db
+    .select({ id: categorizationRules.id })
+    .from(categorizationRules)
+    .where(
+      and(
+        eq(categorizationRules.householdId, householdId),
+        eq(categorizationRules.matchType, matchType as 'merchant_contains' | 'description_contains'),
+        eq(categorizationRules.pattern, matchTerm),
+        eq(categorizationRules.enabled, true),
+      ),
+    )
+    .limit(1);
+  if (existing.length > 0) return;
+
+  await db.insert(categorizationRules).values({
+    householdId,
+    matchType: matchType as 'merchant_contains' | 'description_contains',
+    pattern: matchTerm,
+    caseInsensitive: true,
+    categoryId: newCategoryId,
+    priority: 0,
+    enabled: true,
+  });
 }
 
 export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) => {
@@ -227,6 +286,14 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
           newValue: d.newValue,
         })),
       );
+    }
+
+    if (body.data.categoryId && body.data.categoryId !== current.categoryId) {
+      try {
+        await maybePromoteToRule(db, household.id, req.params.id, body.data.categoryId);
+      } catch (err) {
+        req.log.warn({ err }, 'auto-rule promotion failed');
+      }
     }
 
     return updated[0];

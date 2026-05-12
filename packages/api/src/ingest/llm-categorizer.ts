@@ -20,6 +20,12 @@ export interface CategoryInfo {
   name: string;
 }
 
+export interface FeedbackExample {
+  pattern: string;
+  categorySlug: string;
+  categoryName: string;
+}
+
 export const LLM_APPLY_THRESHOLD = 0.85;
 export const LLM_RULE_THRESHOLD = 0.90;
 
@@ -53,9 +59,9 @@ const CATEGORIZE_TOOL: Anthropic.Tool = {
   },
 };
 
-function buildSystemPrompt(categories: CategoryInfo[]): string {
+function buildSystemPrompt(categories: CategoryInfo[], feedbackExamples?: FeedbackExample[]): string {
   const catLines = categories.map((c) => `- ${c.slug}: ${c.name}`).join('\n');
-  return `You are a personal finance transaction categorizer. Assign each transaction to the most appropriate category based on its description.
+  let prompt = `You are a personal finance transaction categorizer. Assign each transaction to the most appropriate category based on its description.
 
 Available categories:
 ${catLines}
@@ -66,6 +72,15 @@ Guidelines:
 - Use "uncategorized" when genuinely unsure
 - confidence: 0.0–1.0 (use ≥0.85 only when confident)
 - matchTerm: a short keyword (1–3 words) from the description that would identify this merchant in future transactions. Include only when confidence ≥ 0.90.`;
+
+  if (feedbackExamples && feedbackExamples.length > 0) {
+    const lines = feedbackExamples
+      .map((e) => `- "${e.pattern}" → ${e.categorySlug} (${e.categoryName})`)
+      .join('\n');
+    prompt += `\n\nThis household has previously corrected these transactions — treat as high-confidence signals:\n${lines}`;
+  }
+
+  return prompt;
 }
 
 async function callChunk(
@@ -119,10 +134,11 @@ export async function categorizeBatch(
   client: Anthropic,
   txns: TxnForLlm[],
   categories: CategoryInfo[],
+  feedbackExamples?: FeedbackExample[],
 ): Promise<LlmResult[]> {
   if (txns.length === 0) return [];
 
-  const systemPrompt = buildSystemPrompt(categories);
+  const systemPrompt = buildSystemPrompt(categories, feedbackExamples);
   const results: LlmResult[] = [];
 
   for (let i = 0; i < txns.length; i += BATCH_SIZE) {
