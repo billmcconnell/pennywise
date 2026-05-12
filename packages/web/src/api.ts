@@ -546,7 +546,10 @@ export async function uploadCsv(accountId: string, file: File): Promise<ImportRe
   fd.append('accountId', accountId);
   fd.append('file', file);
   const res = await fetch('/api/imports', { method: 'POST', body: fd });
-  if (!res.ok) throw new Error(`upload ${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `upload ${res.status}`);
+  }
   return res.json() as Promise<ImportResult>;
 }
 

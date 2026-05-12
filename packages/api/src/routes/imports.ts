@@ -9,6 +9,9 @@ import { parseOfx, isOfxContent } from '../ingest/ofx-parser.js';
 import { parseUsaaCsv, isUsaaContent } from '../ingest/usaa-parser.js';
 import { parseSofiCsv, isSofiContent } from '../ingest/sofi-parser.js';
 import { parseBaskCsv, isBaskContent } from '../ingest/bask-parser.js';
+import { parseChaseCsv, isChaseContent } from '../ingest/chase-parser.js';
+import { parseBofaCsv, isBofaContent } from '../ingest/bofa-parser.js';
+import { parseWellsFargoCsv, isWellsFargoContent } from '../ingest/wellsfargo-parser.js';
 import { applyRules, sortRules, type RuleLike } from '../ingest/rules-engine.js';
 import {
   categorizeBatch,
@@ -34,6 +37,13 @@ export const importRoutes: (db: Db, config: AppConfig) => FastifyPluginAsync =
       const file = await req.file();
       if (!file) return reply.code(400).send({ error: 'file field required' });
 
+      const fname = (file.filename ?? '').toLowerCase();
+      if (file.mimetype === 'application/pdf' || fname.endsWith('.pdf')) {
+        return reply.code(400).send({
+          error: 'PDF imports are not yet supported. Please export a CSV or OFX file from your bank instead.',
+        });
+      }
+
       const accountIdField = file.fields['accountId'];
       const accountIdValue =
         accountIdField && 'value' in accountIdField ? String(accountIdField.value) : null;
@@ -47,8 +57,7 @@ export const importRoutes: (db: Db, config: AppConfig) => FastifyPluginAsync =
       if (account.length === 0) return reply.code(404).send({ error: 'account not found' });
 
       const buf = await file.toBuffer();
-      const filename = (file.filename ?? '').toLowerCase();
-      const isOfx = isOfxContent(buf) || filename.endsWith('.ofx') || filename.endsWith('.qfx');
+      const isOfx = isOfxContent(buf) || fname.endsWith('.ofx') || fname.endsWith('.qfx');
 
       let parseOut;
       try {
@@ -60,6 +69,12 @@ export const importRoutes: (db: Db, config: AppConfig) => FastifyPluginAsync =
           parseOut = parseSofiCsv(buf.toString('utf8'));
         } else if (isBaskContent(buf)) {
           parseOut = parseBaskCsv(buf.toString('utf8'));
+        } else if (isChaseContent(buf)) {
+          parseOut = parseChaseCsv(buf.toString('utf8'));
+        } else if (isBofaContent(buf)) {
+          parseOut = parseBofaCsv(buf.toString('utf8'));
+        } else if (isWellsFargoContent(buf)) {
+          parseOut = parseWellsFargoCsv(buf.toString('utf8'));
         } else {
           parseOut = parseAmexCsv(buf.toString('utf8'));
         }
