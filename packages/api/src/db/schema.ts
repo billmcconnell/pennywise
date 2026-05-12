@@ -30,6 +30,8 @@ export const ruleMatchType = pgEnum('rule_match_type', [
   'description_regex',
 ]);
 
+export const categorizationFeedback = pgEnum('categorization_feedback', ['correct', 'incorrect']);
+
 export const households = pgTable('households', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
@@ -117,6 +119,7 @@ export const transactions = pgTable(
     fingerprint: text('fingerprint').notNull(),
     autoCategorized: boolean('auto_categorized').notNull().default(false),
     confidenceScore: real('confidence_score'),
+    categorizationFeedback: categorizationFeedback('categorization_feedback'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()

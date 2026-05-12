@@ -172,6 +172,7 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
           categorySlug: categories.slug,
           categoryName: categories.name,
           autoCategorized: transactions.autoCategorized,
+          categorizationFeedback: transactions.categorizationFeedback,
         })
         .from(transactions)
         .leftJoin(categories, eq(transactions.categoryId, categories.id))
@@ -324,6 +325,26 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
       .orderBy(desc(transactionEdits.editedAt));
 
     return rows;
+  });
+
+  app.post<{ Params: { id: string } }>('/transactions/:id/feedback', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const idCheck = z.string().uuid().safeParse(req.params.id);
+    if (!idCheck.success) return reply.code(400).send({ error: 'bad id' });
+
+    const body = z.object({ correct: z.boolean() }).safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: 'bad body' });
+
+    const updated = await db
+      .update(transactions)
+      .set({ categorizationFeedback: body.data.correct ? 'correct' : 'incorrect' })
+      .where(and(eq(transactions.id, req.params.id), eq(transactions.householdId, household.id)))
+      .returning({ id: transactions.id });
+
+    if (updated.length === 0) return reply.code(404).send({ error: 'not found' });
+    return { ok: true };
   });
 
   app.get('/transactions/by-category', async (req, reply) => {

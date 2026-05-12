@@ -41,6 +41,7 @@ export interface Transaction {
   categorySlug: string | null;
   categoryName: string | null;
   autoCategorized: boolean;
+  categorizationFeedback: 'correct' | 'incorrect' | null;
 }
 
 export interface TransactionUpdateBody {
@@ -411,6 +412,10 @@ export async function patchTransactionCategory(
 
 export function patchTransaction(id: string, body: TransactionUpdateBody): Promise<Transaction> {
   return jsend<Transaction>(`/api/transactions/${id}`, 'PATCH', body);
+}
+
+export function submitCategorizationFeedback(id: string, correct: boolean): Promise<{ ok: boolean }> {
+  return jsend<{ ok: boolean }>(`/api/transactions/${id}/feedback`, 'POST', { correct });
 }
 
 export function fetchAccounts(includeArchived = false): Promise<Account[]> {

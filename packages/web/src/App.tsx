@@ -27,6 +27,7 @@ import {
   fetchTransactions,
   logout,
   patchTransactionCategory,
+  submitCategorizationFeedback,
   updateAccount,
   updateRule,
   upsertBudget,
@@ -350,9 +351,17 @@ function Dashboard() {
     staleTime: 30 * 1000,
   });
 
+  const [feedbackOverrides, setFeedbackOverrides] = useState<Map<string, 'correct' | 'incorrect'>>(
+    new Map(),
+  );
+
   const allTxns = useMemo(
-    () => txnsQ.data?.pages.flatMap((p) => p.rows) ?? [],
-    [txnsQ.data],
+    () =>
+      (txnsQ.data?.pages.flatMap((p) => p.rows) ?? []).map((t) => ({
+        ...t,
+        categorizationFeedback: feedbackOverrides.get(t.id) ?? t.categorizationFeedback,
+      })),
+    [txnsQ.data, feedbackOverrides],
   );
   const txnTotal = txnsQ.data?.pages[0]?.total ?? 0;
   const hasMore = txnsQ.data?.pages.at(-1)?.hasMore ?? false;
@@ -430,6 +439,16 @@ function Dashboard() {
       qc.invalidateQueries({ queryKey: ['summary'] });
     },
   });
+
+  const feedbackMut = useMutation({
+    mutationFn: ({ id, correct }: { id: string; correct: boolean }) =>
+      submitCategorizationFeedback(id, correct),
+  });
+
+  function handleFeedback(id: string, correct: boolean) {
+    setFeedbackOverrides((prev) => new Map(prev).set(id, correct ? 'correct' : 'incorrect'));
+    feedbackMut.mutate({ id, correct });
+  }
 
   const categoryOptions = useMemo(() => buildCategoryOptions(cats.data ?? []), [cats.data]);
 
@@ -583,6 +602,7 @@ function Dashboard() {
             categories={categoryOptions}
             onChange={(id, categoryId) => patch.mutate({ id, categoryId })}
             onEdit={(t) => setEditingTxn(t)}
+            onFeedback={handleFeedback}
             isPending={patch.isPending}
           />
           {hasMore && (
@@ -1482,6 +1502,7 @@ function TransactionTable(props: {
   categories: CategoryOption[];
   onChange: (id: string, categoryId: string | null) => void;
   onEdit: (txn: Transaction) => void;
+  onFeedback: (id: string, correct: boolean) => void;
   isPending: boolean;
 }) {
   return (
@@ -1522,7 +1543,30 @@ function TransactionTable(props: {
                   </option>
                 ))}
               </select>
-              {r.autoCategorized && (
+              {r.autoCategorized && r.categorizationFeedback === null && (
+                <>
+                  <button
+                    type="button"
+                    title="Correct categorization"
+                    onClick={() => props.onFeedback(r.id, true)}
+                    className="shrink-0 rounded p-1 text-zinc-400 hover:bg-emerald-50 hover:text-emerald-600"
+                  >
+                    <IconThumbUp />
+                  </button>
+                  <button
+                    type="button"
+                    title="Wrong — fix it"
+                    onClick={() => { props.onFeedback(r.id, false); props.onEdit(r); }}
+                    className="shrink-0 rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-500"
+                  >
+                    <IconThumbDown />
+                  </button>
+                </>
+              )}
+              {r.autoCategorized && r.categorizationFeedback === 'correct' && (
+                <span className="shrink-0 text-xs text-emerald-600">✓ auto</span>
+              )}
+              {r.autoCategorized && r.categorizationFeedback === null && (
                 <span className="shrink-0 text-xs text-zinc-400">auto</span>
               )}
               <button
@@ -1587,24 +1631,47 @@ function TransactionTable(props: {
                   {fmtMoney(r.amount)}
                 </td>
                 <td className="px-3 py-2">
-                  <select
-                    className="w-full rounded border border-zinc-300 bg-white px-2 py-1"
-                    value={r.categoryId ?? ''}
-                    disabled={props.isPending}
-                    onChange={(e) =>
-                      props.onChange(r.id, e.target.value === '' ? null : e.target.value)
-                    }
-                  >
-                    <option value="">—</option>
-                    {props.categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                  {r.autoCategorized && (
-                    <span className="ml-1 text-xs text-zinc-400">auto</span>
-                  )}
+                  <div className="flex items-center gap-1">
+                    <select
+                      className="flex-1 rounded border border-zinc-300 bg-white px-2 py-1"
+                      value={r.categoryId ?? ''}
+                      disabled={props.isPending}
+                      onChange={(e) =>
+                        props.onChange(r.id, e.target.value === '' ? null : e.target.value)
+                      }
+                    >
+                      <option value="">—</option>
+                      {props.categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                    {r.autoCategorized && r.categorizationFeedback === null && (
+                      <>
+                        <span className="text-xs text-zinc-400">auto</span>
+                        <button
+                          type="button"
+                          title="Correct categorization"
+                          onClick={() => props.onFeedback(r.id, true)}
+                          className="rounded p-1 text-zinc-400 hover:bg-emerald-50 hover:text-emerald-600"
+                        >
+                          <IconThumbUp />
+                        </button>
+                        <button
+                          type="button"
+                          title="Wrong — fix it"
+                          onClick={() => { props.onFeedback(r.id, false); props.onEdit(r); }}
+                          className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-500"
+                        >
+                          <IconThumbDown />
+                        </button>
+                      </>
+                    )}
+                    {r.autoCategorized && r.categorizationFeedback === 'correct' && (
+                      <span className="text-xs text-emerald-600">✓ auto</span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-3 py-2">
                   <button
@@ -1621,6 +1688,22 @@ function TransactionTable(props: {
         </table>
       </div>
     </>
+  );
+}
+
+function IconThumbUp() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path d="M1 8.25a1.25 1.25 0 112.5 0v7.5a1.25 1.25 0 11-2.5 0v-7.5zM11 3V1.7c0-.268.14-.526.395-.607A2 2 0 0114 3c0 .995-.182 1.948-.514 2.826-.204.54.166 1.174.744 1.174h2.52c1.243 0 2.261 1.01 2.146 2.247a23.864 23.864 0 01-1.341 5.974C17.153 16.323 16.072 17 14.9 17h-3.192a3 3 0 01-1.341-.317l-1.734-.868A4.5 4.5 0 006.5 15.5v-8.67a3 3 0 011.5-2.598l1-.577A2 2 0 0111 3z" />
+    </svg>
+  );
+}
+
+function IconThumbDown() {
+  return (
+    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path d="M18.905 12.75a1.25 1.25 0 11-2.5 0v-7.5a1.25 1.25 0 012.5 0v7.5zM8.905 17v1.3c0 .268-.14.526-.395.607A2 2 0 015.905 17c0-.995.182-1.948.514-2.826.204-.54-.166-1.174-.744-1.174h-2.52c-1.243 0-2.261-1.01-2.146-2.247.193-2.08.652-4.082 1.341-5.974C2.752 3.678 3.833 3 5.005 3h3.192a3 3 0 011.342.317l1.733.868A4.501 4.501 0 0013.405 4.5v8.67a3 3 0 01-1.5 2.598l-1 .577a2 2 0 01-2 0z" />
+    </svg>
   );
 }
 
