@@ -1,54 +1,114 @@
 import type { Summary } from './api';
 
-const fmt = (s: string): string =>
+const fmtFull = (s: string) =>
   Number(s).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
-export function SummaryCards(props: { summary: Summary | undefined; isLoading: boolean }) {
-  const s = props.summary;
+const fmtShort = (s: string) =>
+  Number(s).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+function pct(current: string, prior: string): number | null {
+  const c = Number(current);
+  const p = Number(prior);
+  if (p === 0) return null;
+  return ((c - p) / Math.abs(p)) * 100;
+}
+
+function TrendBadge({ changePct, positiveIsGood }: { changePct: number | null; positiveIsGood: boolean }) {
+  if (changePct === null) return null;
+  const abs = Math.abs(changePct);
+  if (abs < 0.5) return <span className="text-xs text-zinc-400">—</span>;
+  const isGood = positiveIsGood ? changePct > 0 : changePct < 0;
+  const color = isGood ? 'text-emerald-600' : 'text-amber-600';
+  const arrow = changePct > 0 ? '↗' : '↙';
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-      <Card label="Income" value={s ? fmt(s.income) : '—'} accent="emerald" loading={props.isLoading} />
-      <Card label="Expenses" value={s ? fmt(s.expenses) : '—'} accent="rose" loading={props.isLoading} />
-      <Card label="Net" value={s ? fmt(s.net) : '—'} accent={s && Number(s.net) < 0 ? 'rose' : 'emerald'} loading={props.isLoading} />
-      <Card
-        label="Largest category"
-        value={s?.largestCategory ? s.largestCategory.name ?? '—' : '—'}
-        sub={s?.largestCategory ? fmt(s.largestCategory.total) : undefined}
-        loading={props.isLoading}
-      />
-      <Card
-        label="Uncategorized"
-        value={s ? String(s.uncategorizedCount) : '—'}
-        sub={s ? `of ${s.txnCount} txns` : undefined}
-        accent={s && s.uncategorizedCount > 0 ? 'amber' : 'zinc'}
-        loading={props.isLoading}
-      />
+    <span className={`text-xs font-semibold ${color}`}>
+      {abs.toFixed(1)}% {arrow}
+    </span>
+  );
+}
+
+function Card({
+  label,
+  value,
+  prevValue,
+  accentClass,
+  positiveIsGood,
+  loading,
+}: {
+  label: string;
+  value: string | undefined;
+  prevValue: string | undefined;
+  accentClass: string;
+  positiveIsGood: boolean;
+  loading: boolean;
+}) {
+  const changePct = value && prevValue ? pct(value, prevValue) : null;
+
+  if (loading) {
+    return (
+      <div className="animate-pulse rounded-xl border border-zinc-200 bg-white p-4">
+        <div className="mb-2 h-2.5 w-20 rounded bg-zinc-200" />
+        <div className="h-7 w-32 rounded bg-zinc-200" />
+        <div className="mt-2 h-3 w-24 rounded bg-zinc-200" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white p-4">
+      <div className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">{label}</div>
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <span
+          className={`font-display text-2xl font-bold tabular-nums ${accentClass}`}
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          {value ? fmtShort(value) : '—'}
+        </span>
+        <TrendBadge changePct={changePct} positiveIsGood={positiveIsGood} />
+      </div>
+      {prevValue && (
+        <p className="mt-1 text-xs text-zinc-400">
+          vs. {fmtFull(prevValue)} last month
+        </p>
+      )}
     </div>
   );
 }
 
-const ACCENTS = {
-  emerald: 'text-emerald-700',
-  rose: 'text-rose-700',
-  amber: 'text-amber-700',
-  zinc: 'text-zinc-900',
-} as const;
-
-function Card(props: {
-  label: string;
-  value: string;
-  sub?: string | undefined;
-  accent?: keyof typeof ACCENTS | undefined;
-  loading: boolean;
+export function SummaryCards(props: {
+  summary: Summary | undefined;
+  prevSummary: Summary | undefined;
+  isLoading: boolean;
 }) {
-  const accent = ACCENTS[props.accent ?? 'zinc'];
+  const s = props.summary;
+  const p = props.prevSummary;
+
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-3">
-      <div className="text-xs uppercase tracking-wide text-zinc-500">{props.label}</div>
-      <div className={`mt-1 text-lg font-semibold tabular-nums ${accent}`}>
-        {props.loading ? '…' : props.value}
-      </div>
-      {props.sub && <div className="text-xs text-zinc-500">{props.sub}</div>}
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <Card
+        label="Income"
+        value={s?.income}
+        prevValue={p?.income}
+        accentClass="text-emerald-700"
+        positiveIsGood={true}
+        loading={props.isLoading}
+      />
+      <Card
+        label="Expenses"
+        value={s?.expenses}
+        prevValue={p?.expenses}
+        accentClass="text-rose-600"
+        positiveIsGood={false}
+        loading={props.isLoading}
+      />
+      <Card
+        label="Net"
+        value={s?.net}
+        prevValue={p?.net}
+        accentClass={s && Number(s.net) >= 0 ? 'text-emerald-700' : 'text-rose-600'}
+        positiveIsGood={true}
+        loading={props.isLoading}
+      />
     </div>
   );
 }

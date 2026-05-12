@@ -124,7 +124,7 @@ export function TxnEditModal(props: {
       onClick={props.onClose}
     >
       <div
-        className="w-full max-w-lg rounded-lg bg-white p-3 shadow-xl sm:p-5 max-h-[92vh] overflow-y-auto"
+        className="w-full max-w-lg rounded-xl bg-white p-3 shadow-xl sm:p-5 max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="mb-3 flex items-baseline justify-between">
@@ -136,9 +136,9 @@ export function TxnEditModal(props: {
 
         {step === 'confirm-rule' && (
           <div className="flex flex-col gap-3">
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-              <p className="mb-1 text-sm font-medium text-blue-900">Create a categorization rule?</p>
-              <p className="text-sm text-blue-700">
+            <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
+              <p className="mb-1 text-sm font-medium text-teal-900">Create a categorization rule?</p>
+              <p className="text-sm text-teal-700">
                 Automatically categorize future{' '}
                 <span className="font-medium">"{rulePattern}"</span> transactions as{' '}
                 <span className="font-medium">{categoryName}</span>.
@@ -152,7 +152,7 @@ export function TxnEditModal(props: {
                 type="button"
                 disabled={createRuleMutation.isPending}
                 onClick={() => createRuleMutation.mutate()}
-                className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className="rounded bg-emerald-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
               >
                 {createRuleMutation.isPending ? 'Creating…' : 'Yes, create rule'}
               </button>
@@ -169,7 +169,7 @@ export function TxnEditModal(props: {
 
         {step === 'rule-saved' && (
           <div className="flex flex-col gap-3">
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
               <p className="mb-1 text-sm font-medium text-emerald-900">Rule created.</p>
               <p className="text-sm text-emerald-700">
                 Apply it now to re-categorize existing unedited transactions?
@@ -183,7 +183,7 @@ export function TxnEditModal(props: {
                 type="button"
                 disabled={applyRules.isPending}
                 onClick={() => applyRules.mutate()}
-                className="rounded bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
+                className="rounded bg-emerald-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
               >
                 {applyRules.isPending ? 'Applying…' : 'Apply to past transactions'}
               </button>
@@ -297,7 +297,7 @@ export function TxnEditModal(props: {
                   type="button"
                   disabled={save.isPending}
                   onClick={() => save.mutate()}
-                  className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+                  className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
                 >
                   {save.isPending ? 'Saving…' : 'Save'}
                 </button>

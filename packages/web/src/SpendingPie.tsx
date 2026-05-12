@@ -1,17 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { Category, CategoryTotal } from './api';
+import { CATEGORY_COLORS } from './categoryColors';
 
-const COLORS: Record<string, string> = {
-  housing: '#2563eb',
-  transportation: '#0891b2',
-  food: '#16a34a',
-  healthcare: '#dc2626',
-  personal: '#9333ea',
-  financial: '#ca8a04',
-  income: '#059669',
-  uncategorized: '#71717a',
-};
+const COLORS = CATEGORY_COLORS;
 
 const SUB_COLORS = [
   '#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa',
@@ -78,7 +70,7 @@ export function SpendingPie(props: { totals: CategoryTotal[]; categories: Catego
 
   if (slices.length === 0) {
     return (
-      <div className="rounded border border-zinc-200 p-6 text-sm text-zinc-500">
+      <div className="rounded-xl border border-zinc-200 p-6 text-sm text-zinc-500">
         No spending to chart for this month.
       </div>
     );
@@ -87,7 +79,7 @@ export function SpendingPie(props: { totals: CategoryTotal[]; categories: Catego
   const grandTotal = slices.reduce((sum, s) => sum + s.total, 0);
 
   return (
-    <div className="rounded border border-zinc-200 p-4">
+    <div className="rounded-xl border border-zinc-200 p-4">
       <div className="mb-2 flex items-baseline justify-between">
         <div className="flex items-center gap-2">
           {isDrilled && (
@@ -99,7 +91,7 @@ export function SpendingPie(props: { totals: CategoryTotal[]; categories: Catego
               ← All
             </button>
           )}
-          <h2 className="text-lg font-medium">
+          <h2 className="text-base font-semibold text-zinc-900">
             {isDrilled ? drillName : 'Spending by category'}
           </h2>
         </div>

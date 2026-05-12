@@ -91,7 +91,7 @@ export function BillsPage() {
         <button
           type="button"
           onClick={() => setShowAddForm((v) => !v)}
-          className="rounded bg-zinc-900 px-3 py-1 text-sm text-white"
+          className={`rounded px-3 py-1 text-sm ${showAddForm ? 'border border-zinc-300 text-zinc-700 hover:bg-zinc-50' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}
         >
           {showAddForm ? 'Cancel' : '+ Add bill'}
         </button>
@@ -113,7 +113,7 @@ export function BillsPage() {
         <p className="text-zinc-500">No tracked bills yet. Add one above or track a suggestion below.</p>
       )}
       {bills.length > 0 && (
-        <div className="flex flex-col divide-y divide-zinc-100 rounded border border-zinc-200">
+        <div className="flex flex-col divide-y divide-zinc-100 rounded-xl border border-zinc-200">
           {bills.map((b) => (
             <BillRow
               key={b.id}
@@ -206,7 +206,7 @@ function SuggestionsPanel({
   isPending: boolean;
 }) {
   return (
-    <div className="rounded border border-zinc-200 p-4">
+    <div className="rounded-xl border border-zinc-200 p-4">
       <h3 className="mb-3 text-sm font-medium text-zinc-700">
         Suggested from your recurring transactions
       </h3>
@@ -242,7 +242,7 @@ function SuggestionRow({
     return (
       <div className="flex flex-wrap items-center gap-2 rounded bg-zinc-50 p-2 text-sm">
         <input
-          className="min-w-0 flex-1 rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="min-w-0 flex-1 rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Bill name"
@@ -257,7 +257,7 @@ function SuggestionRow({
               expectedAmount: Number(suggestion.avgAmount).toFixed(2),
             })
           }
-          className="rounded bg-zinc-900 px-2 py-1 text-xs text-white disabled:opacity-50"
+          className="rounded bg-emerald-500 px-2 py-1 text-xs text-white hover:bg-emerald-600 disabled:opacity-50"
         >
           {isPending ? 'Saving…' : 'Track'}
         </button>
@@ -283,7 +283,7 @@ function SuggestionRow({
       <button
         type="button"
         onClick={() => setTracking(true)}
-        className="shrink-0 rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+        className="shrink-0 rounded-xl border border-zinc-300 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
       >
         Track
       </button>
@@ -330,7 +330,7 @@ function AddBillForm({
 
   return (
     <form
-      className="flex flex-wrap items-end gap-3 rounded border border-zinc-200 bg-zinc-50 p-3"
+      className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3"
       onSubmit={handleSubmit}
     >
       <FormField label="Name">
@@ -345,7 +345,7 @@ function AddBillForm({
       <FormField label="Match pattern">
         <input
           required
-          className="w-full rounded border border-zinc-300 px-2 py-1 text-sm sm:w-48"
+          className="w-full rounded-xl border border-zinc-300 px-2 py-1 text-sm sm:w-48"
           value={matchPattern}
           onChange={(e) => setMatchPattern(e.target.value)}
           placeholder="NETFLIX"
@@ -356,7 +356,7 @@ function AddBillForm({
           type="number"
           min="0.01"
           step="0.01"
-          className="w-28 rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="w-28 rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={expectedAmount}
           onChange={(e) => setExpectedAmount(e.target.value)}
           placeholder="15.99"
@@ -379,7 +379,7 @@ function AddBillForm({
           type="number"
           min="1"
           max="31"
-          className="w-16 rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="w-16 rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={dueDay}
           onChange={(e) => setDueDay(e.target.value)}
           placeholder="15"
@@ -388,7 +388,7 @@ function AddBillForm({
       <button
         type="submit"
         disabled={isPending || !name.trim() || !matchPattern.trim()}
-        className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+        className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
       >
         {isPending ? 'Saving…' : 'Add bill'}
       </button>

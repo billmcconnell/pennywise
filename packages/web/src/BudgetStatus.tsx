@@ -21,8 +21,8 @@ export function BudgetStatusPanel({ data }: { data: BudgetStatus[] }) {
   if (data.length === 0) return null;
 
   return (
-    <div className="rounded border border-zinc-200 p-4">
-      <h2 className="mb-3 text-lg font-medium">Budget status</h2>
+    <div className="rounded-xl border border-zinc-200 p-4">
+      <h2 className="mb-3 text-base font-semibold text-zinc-900">Budget status</h2>
       <div className="flex flex-col gap-3">
         {data.map((b) => (
           <div key={b.categoryId}>

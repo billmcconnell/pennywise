@@ -72,10 +72,10 @@ function SettingsForm(props: {
 
   return (
     <form
-      className="flex flex-col gap-4 rounded border border-zinc-200 bg-zinc-50 p-4 sm:max-w-md"
+      className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 sm:max-w-md"
       onSubmit={handleSubmit}
     >
-      <h2 className="text-lg font-medium">Preferences</h2>
+      <h2 className="text-base font-semibold text-zinc-900">Preferences</h2>
 
       <Field label="Default dashboard month">
         <select
@@ -107,7 +107,7 @@ function SettingsForm(props: {
         <button
           type="submit"
           disabled={props.isPending}
-          className="rounded bg-zinc-900 px-4 py-1.5 text-sm text-white disabled:opacity-50"
+          className="rounded bg-emerald-500 px-4 py-1.5 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
         >
           {props.isPending ? 'Saving…' : 'Save preferences'}
         </button>
@@ -137,8 +137,8 @@ function MembersSection() {
 
   return (
     <div className="flex flex-col gap-6 sm:max-w-md">
-      <div className="rounded border border-zinc-200 bg-zinc-50 p-4">
-        <h2 className="mb-3 text-lg font-medium">Members</h2>
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+        <h2 className="mb-3 text-base font-semibold text-zinc-900">Members</h2>
         {membersQ.isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
         {membersQ.data && membersQ.data.length === 0 && (
           <p className="text-sm text-zinc-500">No members yet.</p>
@@ -178,8 +178,8 @@ function MembersSection() {
       />
 
       {invitesQ.data && invitesQ.data.length > 0 && (
-        <div className="rounded border border-zinc-200 bg-zinc-50 p-4">
-          <h2 className="mb-3 text-base font-medium">Pending invites</h2>
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+          <h2 className="mb-3 text-base font-semibold text-zinc-900">Pending invites</h2>
           <ul className="divide-y divide-zinc-200">
             {invitesQ.data.map((inv) => (
               <li key={inv.id} className="flex items-center justify-between py-2">
@@ -235,8 +235,8 @@ function InviteForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <div className="rounded border border-zinc-200 bg-zinc-50 p-4">
-      <h2 className="mb-3 text-base font-medium">Invite someone</h2>
+    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+      <h2 className="mb-3 text-base font-semibold text-zinc-900">Invite someone</h2>
       <form onSubmit={handleSubmit} className="flex gap-2">
         <input
           ref={inputRef}
@@ -245,12 +245,12 @@ function InviteForm({ onCreated }: { onCreated: () => void }) {
           placeholder="their@email.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="flex-1 rounded border border-zinc-300 px-2 py-1.5 text-sm"
+          className="flex-1 rounded-xl border border-zinc-300 px-2 py-1.5 text-sm"
         />
         <button
           type="submit"
           disabled={invite.isPending || !email.trim()}
-          className="rounded bg-zinc-900 px-3 py-1.5 text-sm text-white disabled:opacity-50"
+          className="rounded bg-emerald-500 px-3 py-1.5 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
         >
           {invite.isPending ? 'Creating…' : 'Create link'}
         </button>

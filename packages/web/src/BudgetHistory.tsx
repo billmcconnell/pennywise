@@ -58,7 +58,7 @@ export function BudgetHistory() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-base font-medium">Budget history</h3>
+        <h3 className="text-base font-semibold text-zinc-900">Budget history</h3>
         <div className="flex items-center gap-2 text-sm">
           <span className="text-zinc-500">Show</span>
           {MONTH_OPTIONS.map((n) => (
@@ -68,7 +68,7 @@ export function BudgetHistory() {
               onClick={() => setNumMonths(n)}
               className={`rounded px-2 py-0.5 text-sm ${
                 numMonths === n
-                  ? 'bg-zinc-900 text-white'
+                  ? 'bg-teal-800 text-white'
                   : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
               }`}
             >
@@ -91,7 +91,7 @@ export function BudgetHistory() {
       {historyQ.isLoading && <p className="text-zinc-500 text-sm">loading…</p>}
 
       {rows.length > 0 && (
-        <div className="overflow-x-auto rounded border border-zinc-200">
+        <div className="overflow-x-auto rounded-xl border border-zinc-200">
           <table className="w-full text-sm">
             <thead className="bg-zinc-50 text-left text-xs text-zinc-500">
               <tr>

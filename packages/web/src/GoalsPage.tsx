@@ -53,11 +53,11 @@ export function GoalsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
-        <h2 className="text-lg font-medium">Savings goals</h2>
+        <h2 className="text-base font-semibold text-zinc-900">Savings goals</h2>
         <button
           type="button"
           onClick={() => setShowAdd((v) => !v)}
-          className="rounded bg-zinc-900 px-3 py-1 text-sm text-white"
+          className={`rounded px-3 py-1 text-sm ${showAdd ? 'border border-zinc-300 text-zinc-700 hover:bg-zinc-50' : 'bg-emerald-500 text-white hover:bg-emerald-600'}`}
         >
           {showAdd ? 'Cancel' : '+ New goal'}
         </button>
@@ -115,7 +115,7 @@ function GoalCard({
       ? 'bg-amber-400'
       : goal.pct >= 100
         ? 'bg-emerald-500'
-        : 'bg-blue-500';
+        : 'bg-teal-500';
 
   function submitContribution(e: React.FormEvent) {
     e.preventDefault();
@@ -140,7 +140,7 @@ function GoalCard({
   }
 
   return (
-    <div className="rounded border border-zinc-200 p-4">
+    <div className="rounded-xl border border-zinc-200 p-4">
       {/* Header */}
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -223,7 +223,7 @@ function GoalCard({
             min="0.01"
             step="0.01"
             placeholder="Add amount"
-            className="w-36 rounded border border-zinc-300 px-2 py-1 text-sm"
+            className="w-36 rounded-xl border border-zinc-300 px-2 py-1 text-sm"
             value={contributionInput}
             onChange={(e) => setContributionInput(e.target.value)}
             disabled={isPending}
@@ -231,7 +231,7 @@ function GoalCard({
           <button
             type="submit"
             disabled={isPending || !contributionInput}
-            className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+            className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
           >
             Add
           </button>
@@ -272,7 +272,7 @@ function GoalForm({
 
   return (
     <form
-      className="flex flex-wrap items-end gap-3 rounded border border-zinc-200 bg-zinc-50 p-3"
+      className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3"
       onSubmit={handleSubmit}
     >
       <FormField label="Goal name">
@@ -290,7 +290,7 @@ function GoalForm({
           type="number"
           min="0.01"
           step="0.01"
-          className="w-32 rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="w-32 rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={targetAmount}
           onChange={(e) => setTargetAmount(e.target.value)}
           placeholder="5000"
@@ -306,7 +306,7 @@ function GoalForm({
       </FormField>
       <FormField label="Notes">
         <input
-          className="w-48 rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="w-48 rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Optional"
@@ -316,7 +316,7 @@ function GoalForm({
         <button
           type="submit"
           disabled={isPending || !name.trim() || !targetAmount}
-          className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+          className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
         >
           {isPending ? 'Saving…' : initial ? 'Save' : 'Create goal'}
         </button>

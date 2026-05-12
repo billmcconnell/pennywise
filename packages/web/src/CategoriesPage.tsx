@@ -69,7 +69,7 @@ function AddCategoryForm(props: {
 
   return (
     <form
-      className="flex flex-wrap items-end gap-3 rounded border border-zinc-200 bg-zinc-50 p-3"
+      className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (!name.trim() || !parentId) return;
@@ -104,7 +104,7 @@ function AddCategoryForm(props: {
       <button
         type="submit"
         disabled={props.isPending || !name.trim() || !parentId}
-        className="rounded bg-zinc-900 px-3 py-1 text-sm text-white disabled:opacity-50"
+        className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
       >
         {props.isPending ? 'Adding…' : 'Add sub-category'}
       </button>
@@ -120,7 +120,7 @@ function CategoryGroup(props: {
   isPending: boolean;
 }) {
   return (
-    <div className="rounded border border-zinc-200">
+    <div className="rounded-xl border border-zinc-200">
       <div className="border-b border-zinc-100 bg-zinc-50 px-3 py-2 text-sm font-semibold text-zinc-700">
         {props.parent.name}
       </div>

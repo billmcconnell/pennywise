@@ -25,7 +25,7 @@ export function NetWorthPanel({ accounts }: { accounts: Account[] }) {
   const netWorth = assets - liabilities;
 
   return (
-    <div className="grid grid-cols-1 gap-3 rounded border border-zinc-200 p-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 rounded-xl border border-zinc-200 p-4 sm:grid-cols-3">
       <Stat label="Total assets" value={assets} positive />
       <Stat label="Total liabilities" value={liabilities} negative />
       <Stat label="Net worth" value={netWorth} highlight />

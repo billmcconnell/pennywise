@@ -142,26 +142,48 @@ function AppShell({ onLogout, showLogout }: { onLogout: () => void; showLogout: 
 
   return (
     <>
-      <main className="mx-auto flex max-w-6xl flex-col gap-4 p-3 pb-24 sm:p-6 md:pb-6">
-        <header className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold sm:text-2xl">Pennywise</h1>
-          <nav className="hidden gap-2 text-sm md:flex">
-            <TabButton active={view === 'dashboard'} onClick={() => navigate('dashboard')}>Dashboard</TabButton>
-            <TabButton active={view === 'accounts'} onClick={() => navigate('accounts')}>Accounts</TabButton>
-            <TabButton active={view === 'budgets'} onClick={() => navigate('budgets')}>Budgets</TabButton>
-            <TabButton active={view === 'goals'} onClick={() => navigate('goals')}>Goals</TabButton>
-            <TabButton active={view === 'bills'} onClick={() => navigate('bills')}>Bills</TabButton>
-            <TabButton active={view === 'rules'} onClick={() => navigate('rules')}>Rules</TabButton>
-            <TabButton active={view === 'categories'} onClick={() => navigate('categories')}>Categories</TabButton>
-            <TabButton active={view === 'settings'} onClick={() => navigate('settings')}>Settings</TabButton>
+      {/* Full-width sticky top nav */}
+      <header className="sticky top-0 z-30 border-b border-zinc-100 bg-white">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2.5 sm:px-6">
+          {/* Logo */}
+          <div className="flex shrink-0 items-center gap-2.5">
+            <LogoMark size={28} />
+            <span
+              className="hidden text-base font-bold text-teal-900 sm:block"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Pennywise
+            </span>
+          </div>
+
+          {/* Desktop nav pills */}
+          <nav className="hidden flex-1 items-center justify-center gap-0.5 md:flex">
+            <TabButton active={view === 'dashboard'} onClick={() => navigate('dashboard')} icon={<NavIconGrid />}>Dashboard</TabButton>
+            <TabButton active={view === 'accounts'} onClick={() => navigate('accounts')} icon={<NavIconCard />}>Accounts</TabButton>
+            <TabButton active={view === 'budgets'} onClick={() => navigate('budgets')} icon={<NavIconBars />}>Budgets</TabButton>
+            <TabButton active={view === 'goals'} onClick={() => navigate('goals')} icon={<NavIconTarget />}>Goals</TabButton>
+            <TabButton active={view === 'bills'} onClick={() => navigate('bills')} icon={<NavIconReceipt />}>Bills</TabButton>
+            <TabButton active={view === 'rules'} onClick={() => navigate('rules')} icon={<NavIconFilter />}>Rules</TabButton>
+            <TabButton active={view === 'categories'} onClick={() => navigate('categories')} icon={<NavIconTag />}>Categories</TabButton>
+            <TabButton active={view === 'settings'} onClick={() => navigate('settings')} icon={<NavIconCog />}>Settings</TabButton>
+          </nav>
+
+          {/* Right side: sign out */}
+          <div className="ml-auto hidden shrink-0 items-center gap-3 md:flex">
             {showLogout && (
-              <button onClick={onLogout} className="rounded px-2 py-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800">
+              <button
+                onClick={onLogout}
+                className="text-sm text-zinc-400 hover:text-zinc-700"
+              >
                 Sign out
               </button>
             )}
-          </nav>
-        </header>
-        {view === 'dashboard' && <Dashboard />}
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto flex max-w-6xl flex-col gap-4 p-3 pb-24 sm:p-6 md:pb-6">
+        {view === 'dashboard' && <Dashboard onNavigate={navigate} />}
         {view === 'accounts' && <AccountsPage />}
         {view === 'budgets' && <BudgetsPage />}
         {view === 'goals' && <GoalsPage />}
@@ -171,7 +193,7 @@ function AppShell({ onLogout, showLogout }: { onLogout: () => void; showLogout: 
         {view === 'settings' && <SettingsPage />}
       </main>
 
-      {/* Mobile bottom nav — 4 primary + More */}
+      {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-zinc-200 bg-white md:hidden">
         <div className="flex">
           <BottomNavButton active={view === 'dashboard'} onClick={() => navigate('dashboard')} label="Dashboard"><IconHome /></BottomNavButton>
@@ -193,7 +215,7 @@ function AppShell({ onLogout, showLogout }: { onLogout: () => void; showLogout: 
                   key={v}
                   onClick={() => navigate(v)}
                   className={`px-6 py-3.5 text-left text-sm capitalize ${
-                    view === v ? 'bg-zinc-100 font-medium text-zinc-900' : 'text-zinc-700 active:bg-zinc-50'
+                    view === v ? 'bg-zinc-100 font-medium text-teal-800' : 'text-zinc-700 active:bg-zinc-50'
                   }`}
                 >
                   {v.charAt(0).toUpperCase() + v.slice(1)}
@@ -215,14 +237,17 @@ function AppShell({ onLogout, showLogout }: { onLogout: () => void; showLogout: 
   );
 }
 
-function TabButton(props: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function TabButton(props: { active: boolean; onClick: () => void; children: React.ReactNode; icon?: React.ReactNode }) {
   return (
     <button
       onClick={props.onClick}
-      className={`rounded px-3 py-1 ${
-        props.active ? 'bg-teal-800 text-white' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+      className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-colors ${
+        props.active
+          ? 'bg-teal-800 text-white'
+          : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800'
       }`}
     >
+      {props.icon}
       {props.children}
     </button>
   );
@@ -287,7 +312,49 @@ function IconEllipsis() {
   );
 }
 
-function Dashboard() {
+/* Logo mark — 2×2 grid of rounded squares */
+function LogoMark({ size = 28, variant = 'light' }: { size?: number; variant?: 'light' | 'dark' }) {
+  const colors =
+    variant === 'dark'
+      ? { tl: '#FFFFFF', tr: 'rgba(255,255,255,0.55)', bl: 'rgba(255,255,255,0.3)', br: '#22C55E' }
+      : { tl: '#0B3F3A', tr: '#94A3B8', bl: '#CBD5E1', br: '#22C55E' };
+  return (
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none" aria-hidden="true">
+      <rect x="0"  y="0"  width="13" height="13" rx="3" fill={colors.tl} />
+      <rect x="15" y="0"  width="13" height="13" rx="3" fill={colors.tr} />
+      <rect x="0"  y="15" width="13" height="13" rx="3" fill={colors.bl} />
+      <rect x="15" y="15" width="13" height="13" rx="3" fill={colors.br} />
+    </svg>
+  );
+}
+
+/* Nav icons (h-4 w-4) used only in the desktop top nav pills */
+function NavIconGrid() {
+  return <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>;
+}
+function NavIconCard() {
+  return <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M2.5 4A1.5 1.5 0 001 5.5V6h18v-.5A1.5 1.5 0 0017.5 4h-15zM19 8.5H1v6A1.5 1.5 0 002.5 16h15a1.5 1.5 0 001.5-1.5v-6zM3 13.25a.75.75 0 01.75-.75h1.5a.75.75 0 010 1.5h-1.5a.75.75 0 01-.75-.75zm5.25-.75a.75.75 0 000 1.5h2.5a.75.75 0 000-1.5h-2.5z" /></svg>;
+}
+function NavIconBars() {
+  return <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M12 3a1 1 0 00-1 1v12a1 1 0 001 1h2a1 1 0 001-1V4a1 1 0 00-1-1h-2zM6.5 8a1 1 0 00-1 1v7a1 1 0 001 1h2a1 1 0 001-1V9a1 1 0 00-1-1h-2zM2 13a1 1 0 011-1h2a1 1 0 011 1v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3z" /></svg>;
+}
+function NavIconTarget() {
+  return <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12zm0-2a4 4 0 100-8 4 4 0 000 8zm0-2a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>;
+}
+function NavIconReceipt() {
+  return <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>;
+}
+function NavIconFilter() {
+  return <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" /></svg>;
+}
+function NavIconTag() {
+  return <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>;
+}
+function NavIconCog() {
+  return <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>;
+}
+
+function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
   const [month, setMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
   const [accountId, setAccountId] = useState<string>('');
   const [searchInput, setSearchInput] = useState<string>('');
@@ -384,6 +451,13 @@ function Dashboard() {
     staleTime: 30 * 1000,
   });
 
+  const prevMonth = clientAddMonths(month, -1);
+  const prevSummaryQ = useQuery({
+    queryKey: ['summary', prevMonth, accountId],
+    queryFn: () => fetchSummary(prevMonth, accountId || undefined),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const chartMonths = settingsQ.data?.chartMonths ?? 12;
   const fromMonth = clientAddMonths(month, -(chartMonths - 1));
   const monthOptions = availableMonthsQ.data ?? [];
@@ -468,35 +542,49 @@ function Dashboard() {
       <div className="flex flex-col gap-2">
         {/* Row 1: Month + Account + Filters toggle */}
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1 text-sm text-zinc-600">
+          <label className="flex items-center gap-1.5 text-sm text-zinc-600">
             <span className="shrink-0">Month</span>
-            <select
-              className="rounded border border-zinc-300 px-2 py-1 text-sm"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-            >
-              {monthOptions.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                className="appearance-none rounded-xl border border-zinc-300 bg-white py-1.5 pl-3 pr-8 text-sm text-zinc-700 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+              >
+                {monthOptions.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                <svg className="h-4 w-4 text-zinc-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
+                </svg>
+              </span>
+            </div>
           </label>
-          <label className="flex items-center gap-1 text-sm text-zinc-600">
+          <label className="flex items-center gap-1.5 text-sm text-zinc-600">
             <span className="shrink-0">Account</span>
-            <select
-              className="rounded border border-zinc-300 px-2 py-1 text-sm"
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-            >
-              <option value="">All</option>
-              {(accountsQ.data ?? []).map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                className="appearance-none rounded-xl border border-zinc-300 bg-white py-1.5 pl-3 pr-8 text-sm text-zinc-700 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+              >
+                <option value="">All</option>
+                {(accountsQ.data ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+              <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                <svg className="h-4 w-4 text-zinc-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
+                </svg>
+              </span>
+            </div>
           </label>
           <button
             type="button"
             onClick={() => setFiltersOpen((o) => !o)}
-            className={`ml-auto rounded border px-2.5 py-1 text-sm transition-colors ${
+            className={`ml-auto rounded-xl border px-3 py-1.5 text-sm transition-colors ${
               activeFilterCount > 0
                 ? 'border-teal-800 bg-teal-800 text-white'
                 : 'border-zinc-300 text-zinc-600 hover:bg-zinc-50'
@@ -510,14 +598,14 @@ function Dashboard() {
         <input
           type="search"
           placeholder="Search description / merchant"
-          className="w-full rounded border border-zinc-300 px-3 py-1.5 text-sm"
+          className="w-full rounded-xl border border-zinc-300 px-3 py-1.5 text-sm focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
         />
 
         {/* Row 3: Extra filters + export — collapsible */}
         {filtersOpen && (
-          <div className="flex flex-wrap items-center gap-2 rounded border border-zinc-200 bg-zinc-50 p-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-2">
             {(tagsQ.data ?? []).length > 0 && (
               <label className="flex items-center gap-1 text-xs text-zinc-600">
                 <span>Tag</span>
@@ -561,13 +649,27 @@ function Dashboard() {
         )}
       </div>
 
-      <BalanceHero accounts={accountsQ.data ?? []} />
+      <BalanceHero
+        accounts={accountsQ.data ?? []}
+        onImport={() => document.getElementById('upload-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+        onAddAccount={() => onNavigate('accounts')}
+      />
 
-      <UploadForm accounts={accountsQ.data ?? []} />
+      <div id="upload-form">
+        <UploadForm accounts={accountsQ.data ?? []} />
+      </div>
 
-      <SummaryCards summary={summaryQ.data} isLoading={summaryQ.isLoading} />
+      <SummaryCards
+        summary={summaryQ.data}
+        prevSummary={prevSummaryQ.data}
+        isLoading={summaryQ.isLoading}
+      />
 
-      <InsightCards data={insightsQ.data} isLoading={insightsQ.isLoading} />
+      <InsightCards
+        data={insightsQ.data}
+        isLoading={insightsQ.isLoading}
+        onNavigate={(v) => onNavigate(v as View)}
+      />
 
       <CashflowForecast data={forecastQ.data} isLoading={forecastQ.isLoading} />
 
@@ -588,38 +690,57 @@ function Dashboard() {
 
       {categoryTrendsQ.data && <CategoryTrends data={categoryTrendsQ.data} months={chartMonths} />}
 
-      {txnsQ.isLoading && <p className="text-zinc-500">loading…</p>}
-      {txnsQ.error && <p className="text-red-600">error: {(txnsQ.error as Error).message}</p>}
-      {allTxns.length > 0 && (
-        <>
-          <div className="flex items-center justify-between text-xs text-zinc-500">
-            <span>
-              Showing {allTxns.length} of {txnTotal} transactions
-            </span>
+      {/* Two-column: Recent Activity (left) + My Accounts (right) */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+        {/* Recent Activity card */}
+        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+          <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+            <h2 className="text-sm font-semibold text-zinc-800">Recent Activity</h2>
+            {!txnsQ.isLoading && (
+              <span className="text-xs text-zinc-400">
+                {allTxns.length} of {txnTotal}
+              </span>
+            )}
           </div>
-          <TransactionTable
-            rows={allTxns}
-            categories={categoryOptions}
-            onChange={(id, categoryId) => patch.mutate({ id, categoryId })}
-            onEdit={(t) => setEditingTxn(t)}
-            onFeedback={handleFeedback}
-            isPending={patch.isPending}
-          />
-          {hasMore && (
-            <button
-              type="button"
-              onClick={() => txnsQ.fetchNextPage()}
-              disabled={txnsQ.isFetchingNextPage}
-              className="w-full rounded border border-zinc-300 py-2 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"
-            >
-              {txnsQ.isFetchingNextPage ? 'Loading…' : `Load more (${txnTotal - allTxns.length} remaining)`}
-            </button>
+          {txnsQ.isLoading && <p className="px-4 py-3 text-sm text-zinc-500">loading…</p>}
+          {txnsQ.error && <p className="px-4 py-3 text-sm text-red-600">{(txnsQ.error as Error).message}</p>}
+          {!txnsQ.isLoading && allTxns.length === 0 && (
+            <p className="px-4 py-6 text-center text-sm text-zinc-400">No transactions match.</p>
           )}
-        </>
-      )}
-      {!txnsQ.isLoading && allTxns.length === 0 && (
-        <p className="text-zinc-500">No transactions match.</p>
-      )}
+          {allTxns.length > 0 && (
+            <>
+              <TransactionTable
+                rows={allTxns}
+                categories={categoryOptions}
+                onChange={(id, categoryId) => patch.mutate({ id, categoryId })}
+                onEdit={(t) => setEditingTxn(t)}
+                onFeedback={handleFeedback}
+                isPending={patch.isPending}
+                bare
+              />
+              {hasMore && (
+                <div className="border-t border-zinc-100 px-4 py-2">
+                  <button
+                    type="button"
+                    onClick={() => txnsQ.fetchNextPage()}
+                    disabled={txnsQ.isFetchingNextPage}
+                    className="w-full rounded-lg py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 disabled:opacity-50"
+                  >
+                    {txnsQ.isFetchingNextPage ? 'Loading…' : `Load ${txnTotal - allTxns.length} more`}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* My Accounts mini panel */}
+        <DashboardAccountsMini
+          accounts={accountsQ.data ?? []}
+          onSeeAll={() => onNavigate('accounts')}
+        />
+      </div>
+
       {editingTxn && (
         <TxnEditModal
           txn={editingTxn}
@@ -654,17 +775,17 @@ function UploadForm(props: { accounts: Account[] }) {
 
   return (
     <form
-      className="flex flex-wrap items-end gap-3 rounded border border-zinc-200 bg-zinc-50 p-3"
+      className="flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3"
       onSubmit={(e) => {
         e.preventDefault();
         upload.mutate();
       }}
     >
-      <label className="text-sm text-zinc-700">
-        Import CSV / OFX / QFX to:{' '}
+      <span className="shrink-0 text-sm text-zinc-600">Import CSV / OFX / QFX to:</span>
+      <div className="relative">
         <select
           required
-          className="rounded border border-zinc-300 px-2 py-1"
+          className="appearance-none rounded-xl border border-zinc-300 bg-white py-1.5 pl-3 pr-8 text-sm text-zinc-700 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
         >
@@ -675,17 +796,29 @@ function UploadForm(props: { accounts: Account[] }) {
             </option>
           ))}
         </select>
+        <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+          <svg className="h-4 w-4 text-zinc-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
+          </svg>
+        </span>
+      </div>
+      <label className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50">
+        <svg className="h-4 w-4 shrink-0 text-zinc-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M9.25 13.25a.75.75 0 001.5 0V4.636l2.955 3.129a.75.75 0 001.09-1.03l-4.25-4.5a.75.75 0 00-1.09 0l-4.25 4.5a.75.75 0 101.09 1.03L9.25 4.636v8.614z" />
+          <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+        </svg>
+        <span className="max-w-[160px] truncate">{file ? file.name : 'Choose file'}</span>
+        <input
+          type="file"
+          accept=".csv,.ofx,.qfx,text/csv"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="sr-only"
+        />
       </label>
-      <input
-        type="file"
-        accept=".csv,.ofx,.qfx,text/csv"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="text-sm"
-      />
       <button
         type="submit"
         disabled={!accountId || !file || upload.isPending}
-        className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
+        className="rounded-xl bg-emerald-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
       >
         {upload.isPending ? 'Uploading…' : 'Upload'}
       </button>
@@ -760,7 +893,7 @@ function NewAccountForm(props: {
 
   return (
     <form
-      className="flex flex-wrap items-end gap-3 rounded border border-zinc-200 bg-zinc-50 p-3"
+      className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (!name) return;
@@ -807,7 +940,7 @@ function NewAccountForm(props: {
         <input
           pattern="\d{4}"
           maxLength={4}
-          className="w-20 rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="w-20 rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={lastFour}
           onChange={(e) => setLastFour(e.target.value)}
         />
@@ -816,7 +949,7 @@ function NewAccountForm(props: {
         <input
           inputMode="decimal"
           placeholder="0.00"
-          className="w-28 rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="w-28 rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={openingBalance}
           onChange={(e) => setOpeningBalance(e.target.value)}
         />
@@ -848,7 +981,7 @@ function AccountsTable(props: {
   isPending: boolean;
 }) {
   return (
-    <div className="overflow-x-auto rounded border border-zinc-200">
+    <div className="overflow-x-auto rounded-xl border border-zinc-200">
       <table className="w-full text-sm">
         <thead className="bg-zinc-50 text-left text-zinc-600">
           <tr>
@@ -892,7 +1025,7 @@ function AccountRow(props: {
     <tr className={`border-t border-zinc-100 ${archived ? 'text-zinc-400' : ''}`}>
       <td className="px-3 py-2">
         <input
-          className="w-full rounded border border-zinc-300 px-2 py-1"
+          className="w-full rounded-xl border border-zinc-300 px-2 py-1"
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={archived}
@@ -1037,7 +1170,7 @@ function NewBudgetForm(props: {
 
   return (
     <form
-      className="flex flex-wrap items-end gap-3 rounded border border-zinc-200 bg-zinc-50 p-3"
+      className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3"
       onSubmit={handleSubmit}
     >
       <Field label="Category">
@@ -1062,7 +1195,7 @@ function NewBudgetForm(props: {
           min="0.01"
           step="0.01"
           placeholder="500.00"
-          className="w-32 rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="w-32 rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
         />
@@ -1088,7 +1221,7 @@ function BudgetsTable(props: {
   isPending: boolean;
 }) {
   return (
-    <div className="overflow-x-auto rounded border border-zinc-200">
+    <div className="overflow-x-auto rounded-xl border border-zinc-200">
       <table className="w-full text-sm">
         <thead className="bg-zinc-50 text-left text-zinc-600">
           <tr>
@@ -1130,7 +1263,7 @@ function BudgetRow(props: {
           type="number"
           min="0.01"
           step="0.01"
-          className="w-32 rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="w-32 rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           disabled={props.isPending}
@@ -1242,7 +1375,7 @@ function NewRuleForm(props: {
 
   return (
     <form
-      className="flex flex-wrap items-end gap-3 rounded border border-zinc-200 bg-zinc-50 p-3"
+      className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (!pattern || !categoryId) return;
@@ -1269,7 +1402,7 @@ function NewRuleForm(props: {
       <Field label="Pattern">
         <input
           required
-          className="w-full rounded border border-zinc-300 px-2 py-1 text-sm sm:w-64"
+          className="w-full rounded-xl border border-zinc-300 px-2 py-1 text-sm sm:w-64"
           value={pattern}
           onChange={(e) => setPattern(e.target.value)}
         />
@@ -1292,7 +1425,7 @@ function NewRuleForm(props: {
       <Field label="Priority">
         <input
           type="number"
-          className="w-20 rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="w-20 rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
         />
@@ -1327,7 +1460,7 @@ function ApplyControls(props: {
   const [accountId, setAccountId] = useState('');
 
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded border border-zinc-200 bg-zinc-50 p-3">
+    <div className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
       <Field label="Apply scope">
         <select
           className="rounded border border-zinc-300 px-2 py-1 text-sm"
@@ -1385,7 +1518,7 @@ function RulesTable(props: {
     return <p className="text-zinc-500">No rules yet. Add one above.</p>;
   }
   return (
-    <div className="overflow-x-auto rounded border border-zinc-200">
+    <div className="overflow-x-auto rounded-xl border border-zinc-200">
       <table className="w-full text-sm">
         <thead className="bg-zinc-50 text-left text-zinc-600">
           <tr>
@@ -1444,7 +1577,7 @@ function RuleRow(props: {
       <td className="hidden px-3 py-2 sm:table-cell">
         <input
           type="number"
-          className="w-16 rounded border border-zinc-300 px-2 py-1"
+          className="w-16 rounded-xl border border-zinc-300 px-2 py-1"
           defaultValue={props.rule.priority}
           disabled={props.isPending}
           onBlur={(e) => {
@@ -1504,11 +1637,13 @@ function TransactionTable(props: {
   onEdit: (txn: Transaction) => void;
   onFeedback: (id: string, correct: boolean) => void;
   isPending: boolean;
+  bare?: boolean;
 }) {
+  const outerCls = props.bare ? '' : 'rounded-xl border border-zinc-200';
   return (
     <>
       {/* Mobile card list */}
-      <div className="flex flex-col divide-y divide-zinc-100 rounded border border-zinc-200 md:hidden">
+      <div className={`flex flex-col divide-y divide-zinc-100 md:hidden ${outerCls}`}>
         {props.rows.map((r) => (
           <div key={r.id} className="p-3">
             <div className="flex items-start justify-between gap-2">
@@ -1529,7 +1664,7 @@ function TransactionTable(props: {
             </div>
             <div className="mt-2 flex items-center gap-2">
               <select
-                className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-2 py-1 text-xs"
+                className="min-w-0 flex-1 rounded-xl border border-zinc-300 bg-white px-2 py-1 text-xs"
                 value={r.categoryId ?? ''}
                 disabled={props.isPending}
                 onChange={(e) =>
@@ -1591,7 +1726,7 @@ function TransactionTable(props: {
       </div>
 
       {/* Desktop table */}
-      <div className="hidden overflow-x-auto rounded border border-zinc-200 md:block">
+      <div className={`hidden overflow-x-auto md:block ${outerCls}`}>
         <table className="w-full text-sm">
           <thead className="bg-zinc-50 text-left text-zinc-600">
             <tr>
@@ -1633,7 +1768,7 @@ function TransactionTable(props: {
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-1">
                     <select
-                      className="flex-1 rounded border border-zinc-300 bg-white px-2 py-1"
+                      className="flex-1 rounded-xl border border-zinc-300 bg-white px-2 py-1"
                       value={r.categoryId ?? ''}
                       disabled={props.isPending}
                       onChange={(e) =>
@@ -1710,4 +1845,91 @@ function IconThumbDown() {
 function fmtMoney(s: string): string {
   const n = Number(s);
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+}
+
+const ACCOUNT_CARD_COLORS = [
+  'bg-teal-800',
+  'bg-emerald-500',
+  'bg-teal-700',
+  'bg-emerald-600',
+] as const;
+
+function DashboardAccountsMini({
+  accounts,
+  onSeeAll,
+}: {
+  accounts: Account[];
+  onSeeAll: () => void;
+}) {
+  const active = accounts.filter((a) => a.archivedAt === null);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+        <h2 className="text-sm font-semibold text-zinc-800">My Accounts</h2>
+        <button
+          type="button"
+          onClick={onSeeAll}
+          className="text-xs text-teal-700 hover:text-teal-900"
+        >
+          See All →
+        </button>
+      </div>
+      <div className="flex flex-col gap-3 p-3">
+        {active.length === 0 && (
+          <p className="py-4 text-center text-sm text-zinc-400">
+            No accounts yet.{' '}
+            <button type="button" onClick={onSeeAll} className="text-teal-700 hover:underline">
+              Add one →
+            </button>
+          </p>
+        )}
+        {active.slice(0, 4).map((account, i) => (
+          <AccountMiniCard
+            key={account.id}
+            account={account}
+            colorClass={ACCOUNT_CARD_COLORS[i % ACCOUNT_CARD_COLORS.length]!}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AccountMiniCard({
+  account,
+  colorClass,
+}: {
+  account: Account;
+  colorClass: string;
+}) {
+  const bal = Number(account.currentBalance);
+  const fmtBal = bal.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  });
+  const typeLabel = account.type.replace('_', ' ').toUpperCase();
+
+  return (
+    <div className={`rounded-xl p-4 text-white ${colorClass}`}>
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-widest opacity-75">
+          {typeLabel}
+        </span>
+        {account.institution && account.lastFour && (
+          <span className="text-[10px] opacity-60">
+            {account.institution} • ****{account.lastFour}
+          </span>
+        )}
+      </div>
+      <p className="mb-1 truncate text-sm font-medium opacity-90">{account.name}</p>
+      <p
+        className="font-display text-2xl font-bold tabular-nums tracking-tight"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        {fmtBal}
+      </p>
+    </div>
+  );
 }

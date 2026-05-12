@@ -10,17 +10,9 @@ import {
   YAxis,
 } from 'recharts';
 import type { CategoryTrendPoint } from './api';
+import { CATEGORY_COLORS } from './categoryColors';
 
-const COLORS: Record<string, string> = {
-  housing: '#2563eb',
-  transportation: '#0891b2',
-  food: '#16a34a',
-  healthcare: '#dc2626',
-  personal: '#9333ea',
-  financial: '#ca8a04',
-  income: '#059669',
-  uncategorized: '#71717a',
-};
+const COLORS = CATEGORY_COLORS;
 
 const fmt = (n: number): string =>
   n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -58,15 +50,15 @@ export function CategoryTrends(props: { data: CategoryTrendPoint[]; months?: num
 
   if (series.length === 0) {
     return (
-      <div className="rounded border border-zinc-200 p-6 text-sm text-zinc-500">
+      <div className="rounded-xl border border-zinc-200 p-6 text-sm text-zinc-500">
         No category trend data yet.
       </div>
     );
   }
 
   return (
-    <div className="rounded border border-zinc-200 p-4">
-      <h2 className="mb-2 text-lg font-medium">Category trends ({props.months ?? 12} months)</h2>
+    <div className="rounded-xl border border-zinc-200 p-4">
+      <h2 className="mb-2 text-base font-semibold text-zinc-900">Category trends ({props.months ?? 12} months)</h2>
       <div className="h-[240px] w-full sm:h-[280px] md:h-[340px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>

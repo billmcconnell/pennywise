@@ -8,12 +8,12 @@ export function GoalsPanel({ goals }: { goals: SavingsGoal[] }) {
   if (active.length === 0) return null;
 
   return (
-    <div className="rounded border border-zinc-200 p-4">
-      <h2 className="mb-3 text-lg font-medium">Savings goals</h2>
+    <div className="rounded-xl border border-zinc-200 p-4">
+      <h2 className="mb-3 text-base font-semibold text-zinc-900">Savings goals</h2>
       <div className="flex flex-col gap-3">
         {active.map((g) => {
           const barColor =
-            g.onTrack === false ? 'bg-amber-400' : 'bg-blue-500';
+            g.onTrack === false ? 'bg-amber-400' : 'bg-teal-500';
           return (
             <div key={g.id}>
               <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
