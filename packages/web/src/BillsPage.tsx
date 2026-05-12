@@ -74,7 +74,7 @@ export function BillsPage() {
         <label className="text-sm text-zinc-600">
           Month:{' '}
           <select
-            className="rounded border border-zinc-300 px-2 py-1"
+            className="rounded-xl border border-zinc-300 px-2 py-1"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
           >
@@ -336,7 +336,7 @@ function AddBillForm({
       <FormField label="Name">
         <input
           required
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Netflix"
@@ -364,7 +364,7 @@ function AddBillForm({
       </FormField>
       <FormField label="Category">
         <select
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
         >

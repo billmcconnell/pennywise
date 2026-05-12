@@ -278,7 +278,7 @@ function GoalForm({
       <FormField label="Goal name">
         <input
           required
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Emergency fund"
@@ -299,7 +299,7 @@ function GoalForm({
       <FormField label="Target date">
         <input
           type="date"
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={targetDate}
           onChange={(e) => setTargetDate(e.target.value)}
         />

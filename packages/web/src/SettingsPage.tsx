@@ -79,7 +79,7 @@ function SettingsForm(props: {
 
       <Field label="Default dashboard month">
         <select
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={defaultPeriod}
           onChange={(e) => setDefaultPeriod(e.target.value as HouseholdSettings['defaultPeriod'])}
         >
@@ -91,7 +91,7 @@ function SettingsForm(props: {
 
       <Field label="Trend chart range">
         <select
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={chartMonths}
           onChange={(e) =>
             setChartMonths(Number(e.target.value) as HouseholdSettings['chartMonths'])
@@ -259,7 +259,7 @@ function InviteForm({ onCreated }: { onCreated: () => void }) {
         <p className="mt-2 text-xs text-red-600">{(invite.error as Error).message}</p>
       )}
       {inviteUrl && (
-        <div className="mt-3 flex items-center gap-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2">
+        <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
           <p className="min-w-0 flex-1 truncate text-xs text-zinc-700">{inviteUrl}</p>
           <button
             onClick={handleCopy}

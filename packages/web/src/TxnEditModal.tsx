@@ -159,7 +159,7 @@ export function TxnEditModal(props: {
               <button
                 type="button"
                 onClick={props.onClose}
-                className="rounded border border-zinc-300 px-4 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+                className="rounded-xl border border-zinc-300 px-4 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
               >
                 No thanks
               </button>
@@ -190,7 +190,7 @@ export function TxnEditModal(props: {
               <button
                 type="button"
                 onClick={props.onClose}
-                className="rounded border border-zinc-300 px-4 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+                className="rounded-xl border border-zinc-300 px-4 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
               >
                 Done
               </button>
@@ -203,7 +203,7 @@ export function TxnEditModal(props: {
             <div className="flex flex-col gap-3 text-sm">
               <Field label="Description">
                 <input
-                  className="rounded border border-zinc-300 px-2 py-1"
+                  className="rounded-xl border border-zinc-300 px-2 py-1"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                 />
@@ -213,14 +213,14 @@ export function TxnEditModal(props: {
               </div>
               <Field label="Merchant">
                 <input
-                  className="rounded border border-zinc-300 px-2 py-1"
+                  className="rounded-xl border border-zinc-300 px-2 py-1"
                   value={merchant}
                   onChange={(e) => setMerchant(e.target.value)}
                 />
               </Field>
               <Field label="Category">
                 <select
-                  className="rounded border border-zinc-300 px-2 py-1"
+                  className="rounded-xl border border-zinc-300 px-2 py-1"
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
                 >
@@ -234,7 +234,7 @@ export function TxnEditModal(props: {
               </Field>
               <Field label="Tags (comma-separated)">
                 <input
-                  className="rounded border border-zinc-300 px-2 py-1"
+                  className="rounded-xl border border-zinc-300 px-2 py-1"
                   value={tagsInput}
                   onChange={(e) => setTagsInput(e.target.value)}
                 />
@@ -242,7 +242,7 @@ export function TxnEditModal(props: {
               <Field label="Notes">
                 <textarea
                   rows={3}
-                  className="rounded border border-zinc-300 px-2 py-1"
+                  className="rounded-xl border border-zinc-300 px-2 py-1"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
@@ -281,7 +281,7 @@ export function TxnEditModal(props: {
                 type="button"
                 disabled={revert.isPending}
                 onClick={() => revert.mutate()}
-                className="rounded border border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+                className="rounded-xl border border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
               >
                 {revert.isPending ? 'Reverting…' : 'Revert to original'}
               </button>

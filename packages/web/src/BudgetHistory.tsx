@@ -77,7 +77,7 @@ export function BudgetHistory() {
           ))}
           <span className="text-zinc-500">ending</span>
           <select
-            className="rounded border border-zinc-300 px-2 py-1 text-sm"
+            className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
             value={endMonth}
             onChange={(e) => setEndMonth(e.target.value)}
           >

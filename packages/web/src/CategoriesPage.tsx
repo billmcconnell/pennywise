@@ -80,7 +80,7 @@ function AddCategoryForm(props: {
       <Field label="Parent category">
         <select
           required
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={parentId}
           onChange={(e) => setParentId(e.target.value)}
         >
@@ -96,7 +96,7 @@ function AddCategoryForm(props: {
         <input
           required
           placeholder="e.g. Gym"
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />

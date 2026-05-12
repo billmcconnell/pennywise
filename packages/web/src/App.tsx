@@ -610,7 +610,7 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
               <label className="flex items-center gap-1 text-xs text-zinc-600">
                 <span>Tag</span>
                 <select
-                  className="rounded border border-zinc-300 px-2 py-1 text-xs"
+                  className="rounded-xl border border-zinc-300 px-2 py-1 text-xs"
                   value={tag}
                   onChange={(e) => setTag(e.target.value)}
                 >
@@ -624,7 +624,7 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
             <label className="flex items-center gap-1 text-xs text-zinc-600">
               <span>Category</span>
               <select
-                className="rounded border border-zinc-300 px-2 py-1 text-xs"
+                className="rounded-xl border border-zinc-300 px-2 py-1 text-xs"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
               >
@@ -638,10 +638,10 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
               </select>
             </label>
             <div className="ml-auto flex gap-2">
-              <a href={csvHref} className="rounded border border-zinc-300 px-2.5 py-1 text-xs text-zinc-700 hover:bg-zinc-100">
+              <a href={csvHref} className="rounded-xl border border-zinc-300 px-2.5 py-1 text-xs text-zinc-700 hover:bg-zinc-100">
                 Export CSV
               </a>
-              <a href="/api/exports/backup.json" className="rounded border border-zinc-300 px-2.5 py-1 text-xs text-zinc-700 hover:bg-zinc-100">
+              <a href="/api/exports/backup.json" className="rounded-xl border border-zinc-300 px-2.5 py-1 text-xs text-zinc-700 hover:bg-zinc-100">
                 Backup
               </a>
             </div>
@@ -724,7 +724,7 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
                     type="button"
                     onClick={() => txnsQ.fetchNextPage()}
                     disabled={txnsQ.isFetchingNextPage}
-                    className="w-full rounded-lg py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 disabled:opacity-50"
+                    className="w-full rounded-xl py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 disabled:opacity-50"
                   >
                     {txnsQ.isFetchingNextPage ? 'Loading…' : `Load ${txnTotal - allTxns.length} more`}
                   </button>
@@ -911,14 +911,14 @@ function NewAccountForm(props: {
       <Field label="Name">
         <input
           required
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
       </Field>
       <Field label="Type">
         <select
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={type}
           onChange={(e) => setType(e.target.value as AccountType)}
         >
@@ -931,7 +931,7 @@ function NewAccountForm(props: {
       </Field>
       <Field label="Institution">
         <input
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={institution}
           onChange={(e) => setInstitution(e.target.value)}
         />
@@ -1033,7 +1033,7 @@ function AccountRow(props: {
       </td>
       <td className="px-3 py-2">
         <select
-          className="rounded border border-zinc-300 px-2 py-1"
+          className="rounded-xl border border-zinc-300 px-2 py-1"
           value={type}
           onChange={(e) => setType(e.target.value as AccountType)}
           disabled={archived}
@@ -1176,7 +1176,7 @@ function NewBudgetForm(props: {
       <Field label="Category">
         <select
           required
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
         >
@@ -1388,7 +1388,7 @@ function NewRuleForm(props: {
     >
       <Field label="Match type">
         <select
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={matchType}
           onChange={(e) => setMatchType(e.target.value as RuleMatchType)}
         >
@@ -1410,7 +1410,7 @@ function NewRuleForm(props: {
       <Field label="Category">
         <select
           required
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={categoryId}
           onChange={(e) => setCategoryId(e.target.value)}
         >
@@ -1463,7 +1463,7 @@ function ApplyControls(props: {
     <div className="flex flex-wrap items-end gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
       <Field label="Apply scope">
         <select
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={scope}
           onChange={(e) => setScope(e.target.value as RuleApplyScope)}
         >
@@ -1476,7 +1476,7 @@ function ApplyControls(props: {
       </Field>
       <Field label="Account">
         <select
-          className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          className="rounded-xl border border-zinc-300 px-2 py-1 text-sm"
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
         >
@@ -1562,7 +1562,7 @@ function RuleRow(props: {
       <td className="px-3 py-2 font-mono text-xs">{props.rule.pattern}</td>
       <td className="px-3 py-2">
         <select
-          className="rounded border border-zinc-300 px-2 py-1"
+          className="rounded-xl border border-zinc-300 px-2 py-1"
           value={props.rule.categoryId}
           disabled={props.isPending}
           onChange={(e) => props.onUpdate(props.rule.id, { categoryId: e.target.value })}
