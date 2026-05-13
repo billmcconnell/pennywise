@@ -9,7 +9,14 @@ export function GoalsPanel({ goals }: { goals: SavingsGoal[] }) {
 
   return (
     <div className="rounded-xl border border-zinc-200 p-4">
-      <h2 className="mb-3 text-base font-semibold text-zinc-900">Savings goals</h2>
+      <div className="mb-3 flex items-center gap-2">
+        <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="shrink-0 text-zinc-400">
+          <circle cx="12" cy="12" r="10"/>
+          <circle cx="12" cy="12" r="6"/>
+          <circle cx="12" cy="12" r="2"/>
+        </svg>
+        <h2 className="text-base font-semibold text-zinc-900">Savings goals</h2>
+      </div>
       <div className="flex flex-col gap-3">
         {active.map((g) => {
           const barColor =

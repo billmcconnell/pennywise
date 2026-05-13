@@ -366,12 +366,6 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
   const [accountId, setAccountId] = useState<string>(
     () => localStorage.getItem('dashboard:accountId') ?? ''
   );
-  const [searchInput, setSearchInput] = useState<string>('');
-  const search = useDebounce(searchInput, 300);
-  const [tag, setTag] = useState<string>('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
   const qc = useQueryClient();
 
   useEffect(() => { localStorage.setItem('dashboard:month', month); }, [month]);
@@ -393,12 +387,6 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
     queryKey: ['available-months'],
     queryFn: fetchAvailableMonths,
     staleTime: 5 * 60 * 1000,
-  });
-
-  const tagsQ = useQuery({
-    queryKey: ['tags'],
-    queryFn: fetchTags,
-    staleTime: 2 * 60 * 1000,
   });
 
   const hasAppliedDefault = useRef(false);
@@ -424,31 +412,6 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
       if (latest) setMonth(latest);
     }
   }, [settingsQ.data, availableMonthsQ.data]);
-
-  const txnsQ = useInfiniteQuery({
-    queryKey: ['transactions', month, accountId, search, tag, categoryFilter],
-    queryFn: ({ pageParam }) =>
-      fetchTransactions(month, accountId || undefined, search || undefined, pageParam, tag || undefined, categoryFilter || undefined),
-    initialPageParam: 0,
-    getNextPageParam: (lastPage, _pages, lastPageParam) =>
-      lastPage.hasMore ? lastPageParam + PAGE_SIZE : undefined,
-    staleTime: 30 * 1000,
-  });
-
-  const [feedbackOverrides, setFeedbackOverrides] = useState<Map<string, 'correct' | 'incorrect'>>(
-    new Map(),
-  );
-
-  const allTxns = useMemo(
-    () =>
-      (txnsQ.data?.pages.flatMap((p) => p.rows) ?? []).map((t) => ({
-        ...t,
-        categorizationFeedback: feedbackOverrides.get(t.id) ?? t.categorizationFeedback,
-      })),
-    [txnsQ.data, feedbackOverrides],
-  );
-  const txnTotal = txnsQ.data?.pages[0]?.total ?? 0;
-  const hasMore = txnsQ.data?.pages.at(-1)?.hasMore ?? false;
 
   const cats = useQuery({
     queryKey: ['categories'],
@@ -521,149 +484,53 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
     staleTime: 30 * 1000,
   });
 
-  const patch = useMutation({
-    mutationFn: ({ id, categoryId }: { id: string; categoryId: string | null }) =>
-      patchTransactionCategory(id, categoryId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['transactions'] });
-      qc.invalidateQueries({ queryKey: ['by-category'] });
-      qc.invalidateQueries({ queryKey: ['summary'] });
-    },
-  });
-
-  const feedbackMut = useMutation({
-    mutationFn: ({ id, correct }: { id: string; correct: boolean }) =>
-      submitCategorizationFeedback(id, correct),
-  });
-
-  function handleFeedback(id: string, correct: boolean) {
-    setFeedbackOverrides((prev) => new Map(prev).set(id, correct ? 'correct' : 'incorrect'));
-    feedbackMut.mutate({ id, correct });
-  }
-
-  const categoryOptions = useMemo(() => buildCategoryOptions(cats.data ?? []), [cats.data]);
-
-  const csvHref = useMemo(() => {
-    const p = new URLSearchParams({ month });
-    if (accountId) p.set('accountId', accountId);
-    if (search) p.set('q', search);
-    if (tag) p.set('tag', tag);
-    if (categoryFilter) p.set('categoryId', categoryFilter);
-    return `/api/exports/transactions.csv?${p.toString()}`;
-  }, [month, accountId, search, tag, categoryFilter]);
-
-  const activeFilterCount = (tag ? 1 : 0) + (categoryFilter ? 1 : 0);
-
   return (
     <>
-      <div className="flex flex-col gap-2">
-        {/* Row 1: Month + Account + Filters toggle */}
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1.5 text-sm text-zinc-600">
-            <span className="shrink-0">Month</span>
-            <div className="relative">
-              <select
-                className="appearance-none rounded-xl border border-zinc-300 bg-white py-1.5 pl-3 pr-8 text-sm text-zinc-700 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-              >
-                {monthOptions.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-                <svg className="h-4 w-4 text-zinc-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
-                </svg>
-              </span>
-            </div>
-          </label>
-          <label className="flex items-center gap-1.5 text-sm text-zinc-600">
-            <span className="shrink-0">Account</span>
-            <div className="relative">
-              <select
-                className="appearance-none rounded-xl border border-zinc-300 bg-white py-1.5 pl-3 pr-8 text-sm text-zinc-700 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
-              >
-                <option value="">All</option>
-                {(accountsQ.data ?? []).map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-              <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-                <svg className="h-4 w-4 text-zinc-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
-                </svg>
-              </span>
-            </div>
-          </label>
-          <button
-            type="button"
-            onClick={() => setFiltersOpen((o) => !o)}
-            className={`ml-auto rounded-xl border px-3 py-1.5 text-sm transition-colors ${
-              activeFilterCount > 0
-                ? 'border-teal-800 bg-teal-800 text-white'
-                : 'border-zinc-300 text-zinc-600 hover:bg-zinc-50'
-            }`}
-          >
-            Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-          </button>
-        </div>
-
-        {/* Row 2: Search — always visible */}
-        <input
-          type="search"
-          placeholder="Search description / merchant"
-          className="w-full rounded-xl border border-zinc-300 px-3 py-1.5 text-sm focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-        />
-
-        {/* Row 3: Extra filters + export — collapsible */}
-        {filtersOpen && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-2">
-            {(tagsQ.data ?? []).length > 0 && (
-              <label className="flex items-center gap-1 text-xs text-zinc-600">
-                <span>Tag</span>
-                <select
-                  className="rounded-xl border border-zinc-300 px-2 py-1 text-xs"
-                  value={tag}
-                  onChange={(e) => setTag(e.target.value)}
-                >
-                  <option value="">All tags</option>
-                  {(tagsQ.data ?? []).map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <label className="flex items-center gap-1 text-xs text-zinc-600">
-              <span>Category</span>
-              <select
-                className="rounded-xl border border-zinc-300 px-2 py-1 text-xs"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="">All categories</option>
-                <option value="none">Uncategorized</option>
-                {(cats.data ?? [])
-                  .filter((c) => c.parentId === null && c.name.toLowerCase() !== 'uncategorized')
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-              </select>
-            </label>
-            <div className="ml-auto flex gap-2">
-              <a href={csvHref} className="rounded-xl border border-zinc-300 px-2.5 py-1 text-xs text-zinc-700 hover:bg-zinc-100">
-                Export CSV
-              </a>
-              <a href="/api/exports/backup.json" className="rounded-xl border border-zinc-300 px-2.5 py-1 text-xs text-zinc-700 hover:bg-zinc-100">
-                Backup
-              </a>
-            </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-1.5 text-sm text-zinc-600">
+          <span className="shrink-0">Month</span>
+          <div className="relative">
+            <select
+              className="appearance-none rounded-xl border border-zinc-300 bg-white py-1.5 pl-3 pr-8 text-sm text-zinc-700 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+            >
+              {monthOptions.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+              <svg className="h-4 w-4 text-zinc-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
+              </svg>
+            </span>
           </div>
-        )}
+        </label>
+        <label className="flex items-center gap-1.5 text-sm text-zinc-600">
+          <span className="shrink-0">Account</span>
+          <div className="relative">
+            <select
+              className="appearance-none rounded-xl border border-zinc-300 bg-white py-1.5 pl-3 pr-8 text-sm text-zinc-700 focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+            >
+              <option value="">All</option>
+              {(accountsQ.data ?? []).map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+              <svg className="h-4 w-4 text-zinc-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
+              </svg>
+            </span>
+          </div>
+        </label>
+        <div className="ml-auto">
+          <a href="/api/exports/backup.json" className="rounded-xl border border-zinc-300 px-2.5 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50">
+            Backup
+          </a>
+        </div>
       </div>
 
       <BalanceHero
@@ -710,46 +577,11 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
       {/* Two-column: Recent Activity (left) + My Accounts (right) */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
         {/* Recent Activity card */}
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-            <h2 className="text-sm font-semibold text-zinc-800">Recent Activity</h2>
-            {!txnsQ.isLoading && (
-              <span className="text-xs text-zinc-400">
-                {allTxns.length} of {txnTotal}
-              </span>
-            )}
-          </div>
-          {txnsQ.isLoading && <p className="px-4 py-3 text-sm text-zinc-500">loading…</p>}
-          {txnsQ.error && <p className="px-4 py-3 text-sm text-red-600">{(txnsQ.error as Error).message}</p>}
-          {!txnsQ.isLoading && allTxns.length === 0 && (
-            <p className="px-4 py-6 text-center text-sm text-zinc-400">No transactions match.</p>
-          )}
-          {allTxns.length > 0 && (
-            <>
-              <TransactionTable
-                rows={allTxns}
-                categories={categoryOptions}
-                onChange={(id, categoryId) => patch.mutate({ id, categoryId })}
-                onEdit={(t) => setEditingTxn(t)}
-                onFeedback={handleFeedback}
-                isPending={patch.isPending}
-                bare
-              />
-              {hasMore && (
-                <div className="border-t border-zinc-100 px-4 py-2">
-                  <button
-                    type="button"
-                    onClick={() => txnsQ.fetchNextPage()}
-                    disabled={txnsQ.isFetchingNextPage}
-                    className="w-full rounded-xl py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 disabled:opacity-50"
-                  >
-                    {txnsQ.isFetchingNextPage ? 'Loading…' : `Load ${txnTotal - allTxns.length} more`}
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        <RecentActivityCard
+          month={month}
+          accountId={accountId}
+          accounts={accountsQ.data ?? []}
+        />
 
         {/* My Accounts mini panel */}
         <DashboardAccountsMini
@@ -758,13 +590,6 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
         />
       </div>
 
-      {editingTxn && (
-        <TxnEditModal
-          txn={editingTxn}
-          categories={categoryOptions}
-          onClose={() => setEditingTxn(null)}
-        />
-      )}
     </>
   );
 }
@@ -1647,6 +1472,436 @@ function buildCategoryOptions(cats: Category[]): CategoryOption[] {
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
+const CATEGORY_PILL: Record<string, { bg: string; text: string }> = {
+  housing:        { bg: 'bg-violet-50',  text: 'text-violet-700'  },
+  transportation: { bg: 'bg-blue-50',    text: 'text-blue-700'    },
+  food:           { bg: 'bg-orange-50',  text: 'text-orange-700'  },
+  healthcare:     { bg: 'bg-rose-50',    text: 'text-rose-700'    },
+  personal:       { bg: 'bg-purple-50',  text: 'text-purple-700'  },
+  financial:      { bg: 'bg-amber-50',   text: 'text-amber-700'   },
+  income:         { bg: 'bg-green-50',   text: 'text-green-700'   },
+  uncategorized:  { bg: 'bg-zinc-100',   text: 'text-zinc-500'    },
+};
+
+function AiStatusBadge(props: {
+  txn: Transaction;
+  onFeedback: (id: string, correct: boolean) => void;
+  onEdit: (t: Transaction) => void;
+}) {
+  const { txn } = props;
+  if (!txn.autoCategorized) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-500">
+        Manual
+      </span>
+    );
+  }
+  if (txn.categorizationFeedback === 'correct') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
+        Auto{' '}
+        <svg width="9" height="9" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </span>
+    );
+  }
+  if (txn.categorizationFeedback === 'incorrect') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600">
+        Wrong{' '}
+        <svg width="9" height="9" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </span>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1">
+      <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-600">
+        Auto?
+      </span>
+      <button
+        type="button"
+        title="Correct categorization"
+        onClick={() => props.onFeedback(txn.id, true)}
+        className="rounded p-1 text-zinc-400 hover:bg-emerald-50 hover:text-emerald-600"
+      >
+        <IconThumbUp />
+      </button>
+      <button
+        type="button"
+        title="Wrong — fix it"
+        onClick={() => { props.onFeedback(txn.id, false); props.onEdit(txn); }}
+        className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-500"
+      >
+        <IconThumbDown />
+      </button>
+    </div>
+  );
+}
+
+function RecentActivityCard(props: {
+  month: string;
+  accountId: string;
+  accounts: Account[];
+}) {
+  const qc = useQueryClient();
+  const [searchInput, setSearchInput] = useState('');
+  const search = useDebounce(searchInput, 300);
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [tag, setTag] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sortAsc, setSortAsc] = useState(false);
+  const [editingTxn, setEditingTxn] = useState<Transaction | null>(null);
+  const [feedbackOverrides, setFeedbackOverrides] = useState<Map<string, 'correct' | 'incorrect'>>(new Map());
+
+  const txnsQ = useInfiniteQuery({
+    queryKey: ['transactions', props.month, props.accountId, search, tag, categoryFilter],
+    queryFn: ({ pageParam }) =>
+      fetchTransactions(props.month, props.accountId || undefined, search || undefined, pageParam, tag || undefined, categoryFilter || undefined),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, _pages, lastPageParam) =>
+      lastPage.hasMore ? lastPageParam + PAGE_SIZE : undefined,
+    staleTime: 30 * 1000,
+  });
+
+  const allTxns = useMemo(
+    () =>
+      (txnsQ.data?.pages.flatMap((p) => p.rows) ?? []).map((t) => ({
+        ...t,
+        categorizationFeedback: feedbackOverrides.get(t.id) ?? t.categorizationFeedback,
+      })),
+    [txnsQ.data, feedbackOverrides],
+  );
+  const txnTotal = txnsQ.data?.pages[0]?.total ?? 0;
+  const hasMore = txnsQ.data?.pages.at(-1)?.hasMore ?? false;
+
+  const catsQ = useQuery({
+    queryKey: ['categories'],
+    queryFn: fetchCategories,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const tagsQ = useQuery({
+    queryKey: ['tags'],
+    queryFn: fetchTags,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const categoryOptions = useMemo(() => buildCategoryOptions(catsQ.data ?? []), [catsQ.data]);
+
+  const feedbackMut = useMutation({
+    mutationFn: ({ id, correct }: { id: string; correct: boolean }) =>
+      submitCategorizationFeedback(id, correct),
+  });
+
+  function handleFeedback(id: string, correct: boolean) {
+    setFeedbackOverrides((prev) => new Map(prev).set(id, correct ? 'correct' : 'incorrect'));
+    feedbackMut.mutate({ id, correct });
+  }
+
+  const csvHref = useMemo(() => {
+    const p = new URLSearchParams({ month: props.month });
+    if (props.accountId) p.set('accountId', props.accountId);
+    if (search) p.set('q', search);
+    if (tag) p.set('tag', tag);
+    if (categoryFilter) p.set('categoryId', categoryFilter);
+    return `/api/exports/transactions.csv?${p.toString()}`;
+  }, [props.month, props.accountId, search, tag, categoryFilter]);
+
+  const activeFilterCount = (search ? 1 : 0) + (tag ? 1 : 0) + (categoryFilter ? 1 : 0);
+
+  const accountMap = useMemo(
+    () => new Map(props.accounts.map((a) => [a.id, a])),
+    [props.accounts],
+  );
+
+  const needsReviewCount = allTxns.filter(
+    (t) => t.autoCategorized && t.categorizationFeedback === null,
+  ).length;
+
+  const sortedRows = useMemo(() => {
+    const copy = [...allTxns];
+    copy.sort((a, b) => {
+      const cmp = a.transactionDate.localeCompare(b.transactionDate);
+      return sortAsc ? cmp : -cmp;
+    });
+    return copy;
+  }, [allTxns, sortAsc]);
+
+  const colTemplate = '1fr 5.5rem 7rem 8rem 8rem';
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3.5">
+        <div className="flex items-center gap-2">
+          <svg
+            width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"
+            className="shrink-0 text-zinc-400"
+          >
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+          <h2 className="text-sm font-semibold text-zinc-800 tracking-tight">Recent Activity</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          {needsReviewCount > 0 && (
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-600">
+              {needsReviewCount} need review
+            </span>
+          )}
+          {!txnsQ.isLoading && (
+            <span className="text-xs text-zinc-400">
+              {allTxns.length} of {txnTotal}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((o) => !o)}
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors ${
+              activeFilterCount > 0
+                ? 'border-teal-700 bg-teal-700 text-white'
+                : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+            }`}
+          >
+            <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="11" y1="18" x2="13" y2="18" />
+            </svg>
+            Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSortAsc((v) => !v)}
+            className="flex items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+            title={sortAsc ? 'Oldest first — click for newest first' : 'Newest first — click for oldest first'}
+          >
+            <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M3 6h18M6 12h12M9 18h6" />
+            </svg>
+            {sortAsc ? 'Oldest' : 'Newest'}
+          </button>
+        </div>
+      </div>
+
+      {/* Inline filter panel */}
+      {filtersOpen && (
+        <div className="border-b border-zinc-100 bg-zinc-50 px-5 py-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              type="search"
+              placeholder="Search description / merchant…"
+              className="w-52 rounded-xl border border-zinc-300 px-3 py-1.5 text-sm focus:border-teal-600 focus:outline-none focus:ring-1 focus:ring-teal-600"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+            <select
+              className="rounded-xl border border-zinc-300 px-2 py-1.5 text-sm text-zinc-700"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+            >
+              <option value="">All categories</option>
+              <option value="none">Uncategorized</option>
+              {(catsQ.data ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.parentId ? `  ${c.name}` : c.name}
+                </option>
+              ))}
+            </select>
+            {(tagsQ.data ?? []).length > 0 && (
+              <select
+                className="rounded-xl border border-zinc-300 px-2 py-1.5 text-sm text-zinc-700"
+                value={tag}
+                onChange={(e) => setTag(e.target.value)}
+              >
+                <option value="">All tags</option>
+                {(tagsQ.data ?? []).map((tg) => (
+                  <option key={tg} value={tg}>{tg}</option>
+                ))}
+              </select>
+            )}
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={() => { setSearchInput(''); setCategoryFilter(''); setTag(''); }}
+                className="text-xs text-zinc-400 hover:text-zinc-700"
+              >
+                Clear
+              </button>
+            )}
+            <a
+              href={csvHref}
+              className="ml-auto rounded-xl border border-zinc-200 px-2.5 py-1.5 text-xs text-zinc-600 hover:bg-zinc-100"
+            >
+              Export CSV
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* States */}
+      {txnsQ.isLoading && <p className="px-5 py-3 text-sm text-zinc-500">Loading…</p>}
+      {txnsQ.error && <p className="px-5 py-3 text-sm text-red-600">{(txnsQ.error as Error).message}</p>}
+      {!txnsQ.isLoading && allTxns.length === 0 && (
+        <p className="px-5 py-6 text-center text-sm text-zinc-400">No transactions match.</p>
+      )}
+
+      {allTxns.length > 0 && (
+        <>
+          {/* Mobile card list */}
+          <div className="flex flex-col divide-y divide-zinc-100 md:hidden">
+            {sortedRows.map((t) => {
+              const pill = CATEGORY_PILL[(t.categorySlug ?? '').split('.')[0] ?? ''] ?? { bg: 'bg-zinc-100', text: 'text-zinc-500' };
+              const needsReview = t.autoCategorized && t.categorizationFeedback === null;
+              return (
+                <div
+                  key={t.id}
+                  className="p-3"
+                  style={needsReview ? { boxShadow: 'inset 3px 0 0 #fbbf24' } : undefined}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-semibold text-zinc-900">{t.description}</div>
+                      <div className="mt-0.5 text-[11px] text-zinc-400">
+                        {fmtDate(t.transactionDate)}
+                        {t.accountName ? ` · ${t.accountName}` : ''}
+                      </div>
+                    </div>
+                    <div className={`shrink-0 tabular-nums text-[13px] font-semibold ${Number(t.amount) < 0 ? 'text-emerald-600' : 'text-zinc-800'}`}>
+                      {fmtActivityAmount(t.amount)}
+                    </div>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {t.categoryName && (
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${pill.bg} ${pill.text}`}>
+                        {t.categoryName}
+                      </span>
+                    )}
+                    <AiStatusBadge txn={t} onFeedback={handleFeedback} onEdit={setEditingTxn} />
+                    <button
+                      type="button"
+                      onClick={() => setEditingTxn(t)}
+                      className="ml-auto rounded-lg bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600 hover:bg-zinc-200"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            {/* Column headers */}
+            <div
+              className="grid gap-3 border-b border-zinc-100 px-5 py-2 text-[10px] font-bold tracking-[0.1em] uppercase text-zinc-400"
+              style={{ gridTemplateColumns: colTemplate }}
+            >
+              <div>Type</div>
+              <div className="text-right">Amount</div>
+              <div className="text-center">Category</div>
+              <div className="text-center">AI Status</div>
+              <div>Account</div>
+            </div>
+            {/* Rows */}
+            {sortedRows.map((t) => {
+              const pill = CATEGORY_PILL[(t.categorySlug ?? '').split('.')[0] ?? ''] ?? { bg: 'bg-zinc-100', text: 'text-zinc-500' };
+              const acct = accountMap.get(t.accountId);
+              const needsReview = t.autoCategorized && t.categorizationFeedback === null;
+              return (
+                <div
+                  key={t.id}
+                  className="group grid gap-3 border-b border-zinc-100 px-5 py-2.5 last:border-0 transition-colors hover:bg-zinc-50"
+                  style={{
+                    gridTemplateColumns: colTemplate,
+                    boxShadow: needsReview ? 'inset 3px 0 0 #fbbf24' : 'none',
+                  }}
+                >
+                  {/* Description + date */}
+                  <div className="min-w-0 self-center">
+                    <div className="truncate text-[13px] font-semibold text-zinc-900">{t.description}</div>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-400">
+                      <span>{fmtDate(t.transactionDate)}</span>
+                      {t.tags.length > 0 && (
+                        <>
+                          <span className="text-zinc-200">·</span>
+                          {t.tags.map((tag) => (
+                            <span key={tag}>#{tag}</span>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {/* Amount */}
+                  <div className="self-center text-right">
+                    <span className={`tabular-nums text-[13px] font-semibold ${Number(t.amount) < 0 ? 'text-emerald-600' : 'text-zinc-800'}`}>
+                      {fmtActivityAmount(t.amount)}
+                    </span>
+                  </div>
+                  {/* Category pill */}
+                  <div className="flex items-center justify-center self-center">
+                    {t.categoryName ? (
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${pill.bg} ${pill.text}`}>
+                        {t.categoryName}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-zinc-300">—</span>
+                    )}
+                  </div>
+                  {/* AI Status */}
+                  <div className="flex items-center justify-center self-center">
+                    <AiStatusBadge txn={t} onFeedback={handleFeedback} onEdit={setEditingTxn} />
+                  </div>
+                  {/* Account + hover Edit */}
+                  <div className="flex items-center justify-between self-center">
+                    <div>
+                      <div className="text-xs font-medium text-zinc-700">{t.accountName ?? '—'}</div>
+                      {acct?.lastFour && (
+                        <div className="mt-0.5 tabular-nums text-xs text-zinc-400">**** {acct.lastFour}</div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingTxn(t)}
+                      className="ml-2 shrink-0 rounded-lg border border-zinc-200 px-2.5 py-1 text-[11px] text-zinc-400 opacity-0 transition-all hover:bg-zinc-50 hover:text-zinc-700 group-hover:opacity-100"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Load more */}
+          {hasMore && (
+            <div className="border-t border-zinc-100 px-5 py-2">
+              <button
+                type="button"
+                onClick={() => txnsQ.fetchNextPage()}
+                disabled={txnsQ.isFetchingNextPage}
+                className="w-full rounded-xl py-1.5 text-xs text-zinc-500 hover:bg-zinc-50 disabled:opacity-50"
+              >
+                {txnsQ.isFetchingNextPage ? 'Loading…' : `Load ${txnTotal - allTxns.length} more`}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {editingTxn && (
+        <TxnEditModal
+          txn={editingTxn}
+          categories={categoryOptions}
+          onClose={() => setEditingTxn(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 function TransactionTable(props: {
   rows: Transaction[];
   categories: CategoryOption[];
@@ -1864,6 +2119,22 @@ function fmtMoney(s: string): string {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
+// Activity card: flip sign so expenses show as -$X and income as +$X
+function fmtActivityAmount(s: string): string {
+  const n = Number(s);
+  const abs = Math.abs(n).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  if (n > 0) return `-${abs}`;
+  if (n < 0) return `+${abs}`;
+  return abs;
+}
+
+function fmtDate(iso: string): string {
+  return new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  });
+
+}
+
 const ACCOUNT_CARD_COLORS = [
   'bg-teal-800',
   'bg-emerald-500',
@@ -1883,7 +2154,13 @@ function DashboardAccountsMini({
   return (
     <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-        <h2 className="text-sm font-semibold text-zinc-800">My Accounts</h2>
+        <div className="flex items-center gap-2">
+          <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="shrink-0 text-zinc-400">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+            <line x1="1" y1="10" x2="23" y2="10"/>
+          </svg>
+          <h2 className="text-sm font-semibold text-zinc-800">My Accounts</h2>
+        </div>
         <button
           type="button"
           onClick={onSeeAll}

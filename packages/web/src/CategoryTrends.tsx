@@ -58,7 +58,15 @@ export function CategoryTrends(props: { data: CategoryTrendPoint[]; months?: num
 
   return (
     <div className="rounded-xl border border-zinc-200 p-4">
-      <h2 className="mb-2 text-base font-semibold text-zinc-900">Category trends ({props.months ?? 12} months)</h2>
+      <div className="mb-2 flex items-center gap-2">
+        <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="shrink-0 text-zinc-400">
+          <line x1="3" y1="3" x2="3" y2="21"/>
+          <line x1="3" y1="21" x2="21" y2="21"/>
+          <polyline points="6 16 10 10 14 13 18 6"/>
+          <polyline points="6 19 10 15 14 17 18 11"/>
+        </svg>
+        <h2 className="text-base font-semibold text-zinc-900">Category trends ({props.months ?? 12} months)</h2>
+      </div>
       <div className="h-[240px] w-full sm:h-[280px] md:h-[340px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>

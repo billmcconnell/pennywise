@@ -22,8 +22,16 @@ export function CashflowForecast({
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-5">
-      <div className="mb-4 flex items-baseline justify-between gap-2">
-        <h2 className="text-base font-semibold text-zinc-900">Next month forecast</h2>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="shrink-0 text-zinc-400">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <h2 className="text-base font-semibold text-zinc-900">Next month forecast</h2>
+        </div>
         <span className="text-xs text-zinc-400">
           based on {data.basedOnMonths}-month recurring patterns
         </span>

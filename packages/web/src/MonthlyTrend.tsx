@@ -89,7 +89,15 @@ export function MonthlyTrend(props: { data: MonthlyPoint[]; months?: number }) {
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-zinc-900">Cash Flow</h2>
+        <div className="flex items-center gap-2">
+          <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="shrink-0 text-zinc-400">
+            <line x1="5" y1="20" x2="5" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="19" y1="20" x2="19" y2="7"/>
+            <line x1="2" y1="20" x2="22" y2="20"/>
+          </svg>
+          <h2 className="text-base font-semibold text-zinc-900">Cash Flow</h2>
+        </div>
         <span className="text-xs text-zinc-400">{props.months ?? 12} months</span>
       </div>
 

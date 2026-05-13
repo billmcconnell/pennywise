@@ -22,7 +22,13 @@ export function TopMerchants(props: { data: MerchantTotal[] }) {
 
   return (
     <div className="rounded-xl border border-zinc-200 p-5">
-      <h2 className="mb-4 text-base font-semibold text-zinc-900">Top merchants</h2>
+      <div className="mb-4 flex items-center gap-2">
+        <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="shrink-0 text-zinc-400">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <h2 className="text-base font-semibold text-zinc-900">Top merchants</h2>
+      </div>
       <div className="flex flex-col gap-3">
         {rows.map((row, i) => (
           <div key={row.name} className="flex items-center gap-3">

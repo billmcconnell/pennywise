@@ -22,27 +22,34 @@ export function BudgetStatusPanel({ data }: { data: BudgetStatus[] }) {
 
   return (
     <div className="rounded-xl border border-zinc-200 p-4">
-      <h2 className="mb-3 text-base font-semibold text-zinc-900">Budget status</h2>
+      <div className="mb-3 flex items-center gap-2">
+        <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="shrink-0 text-zinc-400">
+          <line x1="3" y1="6" x2="17" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="13" y2="18"/>
+        </svg>
+        <h2 className="text-base font-semibold text-zinc-900">Budget status</h2>
+      </div>
       <div className="flex flex-col gap-3">
         {data.map((b) => (
-          <div key={b.categoryId}>
-            <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
-              <span className="font-medium capitalize">{b.categoryName ?? '—'}</span>
-              <span className="shrink-0 tabular-nums text-xs text-zinc-500">
-                {fmt(b.actual)}{' '}
-                <span className="text-zinc-400">/ {fmt(b.budget)}</span>
-              </span>
+          <div key={b.categoryId} className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="mb-1 text-sm font-medium capitalize">{b.categoryName ?? '—'}</p>
+              {bar(b.pct, b.isOver)}
+              <div className="mt-0.5 text-xs text-zinc-500">
+                {b.isOver ? (
+                  <span className="text-red-600">
+                    {fmt(String(Math.abs(Number(b.remaining))))} over budget
+                  </span>
+                ) : (
+                  <span>{fmt(b.remaining)} remaining · {b.pct}% used</span>
+                )}
+              </div>
             </div>
-            {bar(b.pct, b.isOver)}
-            <div className="mt-0.5 text-xs text-zinc-500">
-              {b.isOver ? (
-                <span className="text-red-600">
-                  {fmt(String(Math.abs(Number(b.remaining))))} over budget
-                </span>
-              ) : (
-                <span>{fmt(b.remaining)} remaining · {b.pct}% used</span>
-              )}
-            </div>
+            <span className="shrink-0 tabular-nums text-xs text-zinc-500 pt-0.5">
+              {fmt(b.actual)}{' '}
+              <span className="text-zinc-400">/ {fmt(b.budget)}</span>
+            </span>
           </div>
         ))}
       </div>

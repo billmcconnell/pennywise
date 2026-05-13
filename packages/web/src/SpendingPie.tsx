@@ -91,6 +91,12 @@ export function SpendingPie(props: { totals: CategoryTotal[]; categories: Catego
               ← All
             </button>
           )}
+          {!isDrilled && (
+            <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="shrink-0 text-zinc-400">
+              <path d="M21.21 15.89A10 10 0 118 2.83"/>
+              <path d="M22 12A10 10 0 0012 2v10z"/>
+            </svg>
+          )}
           <h2 className="text-base font-semibold text-zinc-900">
             {isDrilled ? drillName : 'Spending by category'}
           </h2>

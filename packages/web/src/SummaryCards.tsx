@@ -1,4 +1,26 @@
+import type React from 'react';
 import type { Summary } from './api';
+
+const IconTrendingUp = () => (
+  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="shrink-0">
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+    <polyline points="17 6 23 6 23 12"/>
+  </svg>
+);
+
+const IconTrendingDown = () => (
+  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="shrink-0">
+    <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
+    <polyline points="17 18 23 18 23 12"/>
+  </svg>
+);
+
+const IconDollar = () => (
+  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="shrink-0">
+    <line x1="12" y1="1" x2="12" y2="23"/>
+    <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+  </svg>
+);
 
 const fmtFull = (s: string) =>
   Number(s).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
@@ -29,6 +51,7 @@ function TrendBadge({ changePct, positiveIsGood }: { changePct: number | null; p
 
 function Card({
   label,
+  icon,
   value,
   prevValue,
   accentClass,
@@ -36,6 +59,7 @@ function Card({
   loading,
 }: {
   label: string;
+  icon?: React.ReactNode;
   value: string | undefined;
   prevValue: string | undefined;
   accentClass: string;
@@ -56,7 +80,10 @@ function Card({
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4">
-      <div className="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-400">{label}</div>
+      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-zinc-400">
+        {icon}
+        <span>{label}</span>
+      </div>
       <div className="flex items-baseline gap-2 flex-wrap">
         <span
           className={`font-display text-2xl font-bold tabular-nums ${accentClass}`}
@@ -87,6 +114,7 @@ export function SummaryCards(props: {
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <Card
         label="Income"
+        icon={<IconTrendingUp />}
         value={s?.income}
         prevValue={p?.income}
         accentClass="text-emerald-700"
@@ -95,6 +123,7 @@ export function SummaryCards(props: {
       />
       <Card
         label="Expenses"
+        icon={<IconTrendingDown />}
         value={s?.expenses}
         prevValue={p?.expenses}
         accentClass="text-rose-600"
@@ -103,6 +132,7 @@ export function SummaryCards(props: {
       />
       <Card
         label="Net"
+        icon={<IconDollar />}
         value={s?.net}
         prevValue={p?.net}
         accentClass={s && Number(s.net) >= 0 ? 'text-emerald-700' : 'text-rose-600'}

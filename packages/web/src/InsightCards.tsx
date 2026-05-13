@@ -1,12 +1,34 @@
+import type React from 'react';
 import type { InsightsData } from './api';
 
 const usd = (s: string) =>
   Number(s).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
+const IconTag = () => (
+  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+    <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+    <line x1="7" y1="7" x2="7.01" y2="7"/>
+  </svg>
+);
+
+const IconStar = () => (
+  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+  </svg>
+);
+
+const IconRefresh = () => (
+  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+    <polyline points="23 4 23 10 17 10"/>
+    <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+  </svg>
+);
+
 type Accent = 'amber' | 'green' | 'blue';
 
 interface CardProps {
   label: string;
+  icon?: React.ReactNode;
   headline: string;
   sub?: string;
   accent: Accent;
@@ -14,7 +36,7 @@ interface CardProps {
   onCta?: () => void;
 }
 
-function Card({ label, headline, sub, accent, cta, onCta }: CardProps) {
+function Card({ label, icon, headline, sub, accent, cta, onCta }: CardProps) {
   const style: Record<Accent, string> = {
     amber: 'bg-amber-50 border-amber-200',
     green: 'bg-emerald-50 border-emerald-200',
@@ -33,7 +55,10 @@ function Card({ label, headline, sub, accent, cta, onCta }: CardProps) {
 
   return (
     <div className={`flex flex-col rounded-xl border p-4 ${style[accent]}`}>
-      <p className={`mb-1 text-xs font-medium uppercase tracking-wide ${labelColor[accent]}`}>{label}</p>
+      <div className={`mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide ${labelColor[accent]}`}>
+        {icon && <span className="shrink-0 text-zinc-400">{icon}</span>}
+        <span>{label}</span>
+      </div>
       <p className="text-sm font-semibold text-zinc-900">{headline}</p>
       {sub && <p className="mt-0.5 text-xs text-zinc-500">{sub}</p>}
       {cta && onCta && (
@@ -85,6 +110,7 @@ export function InsightCards({
       return (
         <Card
           label="Categorization"
+          icon={<IconTag />}
           headline="All transactions categorized"
           accent="green"
         />
@@ -93,6 +119,7 @@ export function InsightCards({
     return (
       <Card
         label="Categorization"
+        icon={<IconTag />}
         headline={`${uncategorizedCount} transaction${uncategorizedCount === 1 ? '' : 's'} need${uncategorizedCount === 1 ? 's' : ''} a category`}
         accent="amber"
         cta="Open Categorize"
@@ -103,7 +130,7 @@ export function InsightCards({
 
   const topCatCard = (() => {
     if (!topCategory) {
-      return <Card label="Top category" headline="No expense data this month" accent="blue" />;
+      return <Card label="Top category" icon={<IconStar />} headline="No expense data this month" accent="blue" />;
     }
     const { name, currentTotal, priorTotal, changePct } = topCategory;
     const priorNum = Number(priorTotal);
@@ -111,6 +138,7 @@ export function InsightCards({
       return (
         <Card
           label="Top category"
+          icon={<IconStar />}
           headline={`${name} — ${usd(currentTotal)}`}
           sub="No data last month to compare"
           accent="blue"
@@ -125,6 +153,7 @@ export function InsightCards({
     return (
       <Card
         label="Top category"
+        icon={<IconStar />}
         headline={`${name} is ${direction} ${pct}% vs last month`}
         sub={`${usd(currentTotal)} this month vs ${usd(priorNum.toFixed(2))} last month`}
         accent={accent}
@@ -136,12 +165,13 @@ export function InsightCards({
 
   const recurringCard = (() => {
     if (!largestRecurring) {
-      return <Card label="Recurring" headline="No recurring merchants detected" accent="blue" />;
+      return <Card label="Recurring" icon={<IconRefresh />} headline="No recurring merchants detected" accent="blue" />;
     }
     const { merchant, avgMonthlyTotal, monthCount } = largestRecurring;
     return (
       <Card
         label="Largest recurring"
+        icon={<IconRefresh />}
         headline={`${merchant} — ${usd(avgMonthlyTotal)}/mo`}
         sub={`Seen in ${monthCount} of the last 3 months`}
         accent="blue"
