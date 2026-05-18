@@ -61,6 +61,7 @@ import { MonthlyTrend } from './MonthlyTrend';
 import { TopMerchants } from './TopMerchants';
 import { TxnEditModal } from './TxnEditModal';
 import { CategoriesPage } from './CategoriesPage';
+import { CATEGORY_PILL } from './categoryColors';
 
 const ACCOUNT_TYPES: { value: AccountType; label: string }[] = [
   { value: 'checking', label: 'Checking' },
@@ -1472,16 +1473,6 @@ function buildCategoryOptions(cats: Category[]): CategoryOption[] {
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
-const CATEGORY_PILL: Record<string, { bg: string; text: string }> = {
-  housing:        { bg: 'bg-violet-50',  text: 'text-violet-700'  },
-  transportation: { bg: 'bg-blue-50',    text: 'text-blue-700'    },
-  food:           { bg: 'bg-orange-50',  text: 'text-orange-700'  },
-  healthcare:     { bg: 'bg-rose-50',    text: 'text-rose-700'    },
-  personal:       { bg: 'bg-purple-50',  text: 'text-purple-700'  },
-  financial:      { bg: 'bg-amber-50',   text: 'text-amber-700'   },
-  income:         { bg: 'bg-green-50',   text: 'text-green-700'   },
-  uncategorized:  { bg: 'bg-zinc-100',   text: 'text-zinc-500'    },
-};
 
 function AiStatusBadge(props: {
   txn: Transaction;

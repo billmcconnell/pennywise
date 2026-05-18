@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { Category, CategoryTotal } from './api';
-import { CATEGORY_COLORS } from './categoryColors';
+import { CATEGORY_COLORS, CATEGORY_PILL } from './categoryColors';
 
 const COLORS = CATEGORY_COLORS;
 
@@ -132,12 +132,37 @@ export function SpendingPie(props: { totals: CategoryTotal[]; categories: Catego
               ))}
             </Pie>
             <Tooltip formatter={(v: number) => fmt(v)} />
-            <Legend />
           </PieChart>
         </ResponsiveContainer>
       </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {slices.map((s, i) => {
+          const pill = !isDrilled
+            ? (CATEGORY_PILL[s.slug] ?? { bg: 'bg-zinc-100', text: 'text-zinc-500' })
+            : null;
+          return pill ? (
+            <span
+              key={s.slug}
+              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${pill.bg} ${pill.text}`}
+            >
+              {s.name}
+            </span>
+          ) : (
+            <span
+              key={s.slug}
+              className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600"
+            >
+              <span
+                className="inline-block h-2 w-2 rounded-full shrink-0"
+                style={{ background: SUB_COLORS[i % SUB_COLORS.length] }}
+              />
+              {s.name}
+            </span>
+          );
+        })}
+      </div>
       {!isDrilled && (
-        <p className="mt-1 text-xs text-zinc-400">Click a slice to drill into subcategories</p>
+        <p className="mt-2 text-xs text-zinc-400">Click a slice to drill into subcategories</p>
       )}
     </div>
   );

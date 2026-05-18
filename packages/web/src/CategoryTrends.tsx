@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -10,7 +9,7 @@ import {
   YAxis,
 } from 'recharts';
 import type { CategoryTrendPoint } from './api';
-import { CATEGORY_COLORS } from './categoryColors';
+import { CATEGORY_COLORS, CATEGORY_PILL } from './categoryColors';
 
 const COLORS = CATEGORY_COLORS;
 
@@ -74,7 +73,6 @@ export function CategoryTrends(props: { data: CategoryTrendPoint[]; months?: num
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => fmt(v)} width={70} />
             <Tooltip formatter={(v: number) => fmt(v)} />
-            <Legend />
             {topSlugs.map((slug) => (
               <Line
                 key={slug}
@@ -88,6 +86,19 @@ export function CategoryTrends(props: { data: CategoryTrendPoint[]; months?: num
             ))}
           </LineChart>
         </ResponsiveContainer>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5" style={{ paddingLeft: 70 }}>
+        {topSlugs.map((slug) => {
+          const pill = CATEGORY_PILL[slug] ?? { bg: 'bg-zinc-100', text: 'text-zinc-500' };
+          return (
+            <span
+              key={slug}
+              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${pill.bg} ${pill.text}`}
+            >
+              {slugNames.get(slug) ?? slug}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
