@@ -108,6 +108,14 @@ export function App() {
   const queryClient = useQueryClient();
   const authQuery = useQuery({ queryKey: ['auth/me'], queryFn: fetchMe, retry: false });
 
+  useEffect(() => {
+    function onExpired() {
+      queryClient.setQueryData(['auth/me'], null);
+    }
+    window.addEventListener('auth:expired', onExpired);
+    return () => window.removeEventListener('auth:expired', onExpired);
+  }, [queryClient]);
+
   async function handleLogout() {
     await logout();
     queryClient.clear();
@@ -122,7 +130,7 @@ export function App() {
     );
   }
 
-  if (authQuery.data === null) {
+  if (authQuery.isError || !authQuery.data) {
     return <LoginPage />;
   }
 

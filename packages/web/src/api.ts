@@ -293,8 +293,13 @@ export interface RuleApplyResult {
   updated: number;
 }
 
+function dispatchAuthExpired() {
+  window.dispatchEvent(new CustomEvent('auth:expired'));
+}
+
 async function jget<T>(url: string): Promise<T> {
   const res = await fetch(url);
+  if (res.status === 401) { dispatchAuthExpired(); throw new Error('session expired'); }
   if (!res.ok) throw new Error(`${res.status} ${url}`);
   return res.json() as Promise<T>;
 }
@@ -305,6 +310,7 @@ async function jsend<T>(url: string, method: string, body: unknown): Promise<T> 
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
+  if (res.status === 401) { dispatchAuthExpired(); throw new Error('session expired'); }
   if (!res.ok) throw new Error(`${method} ${res.status} ${url}`);
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
