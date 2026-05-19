@@ -10,7 +10,7 @@
   "packageManager": "pnpm@10.33.2",
   "scripts": {
     "build": "pnpm -r build",
-    "dev": "pnpm --parallel -r dev",
+    "dev": "pnpm --filter @pennywise/shared build && pnpm --parallel -r dev",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

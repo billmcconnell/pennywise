@@ -1,0 +1,39 @@
+# https://fly.io/docs/reference/configuration/
+# Run `fly launch` to create the app, then set secrets:
+#   fly secrets set DATABASE_URL=... AUTH_SECRET=... ALLOWED_EMAILS=billmcc@gmail.com
+#   fly secrets set SMTP_HOST=... SMTP_PORT=... SMTP_USER=... SMTP_PASS=...
+#   fly secrets set APP_URL=https://<your-app>.fly.dev
+#   fly secrets set ANTHROPIC_API_KEY=...   # optional, for AI categorization
+
+app            = 'pennywise'
+primary_region = 'iad'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[deploy]
+  # Runs in the new container before traffic is cut over; rolls back on non-zero exit
+  release_command = 'node dist/db/migrate.js'
+
+[env]
+  NODE_ENV  = 'production'
+  HOST      = '0.0.0.0'
+  PORT      = '8080'
+  AUTH_MODE = 'magic-link'
+
+[http_service]
+  internal_port        = 8080
+  force_https          = true
+  auto_stop_machines   = 'stop'
+  auto_start_machines  = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type       = 'connections'
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  cpu_kind = 'shared'
+  cpus     = 1
+  memory   = '256mb'
