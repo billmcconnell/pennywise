@@ -42,6 +42,23 @@ export interface Transaction {
   categoryName: string | null;
   autoCategorized: boolean;
   categorizationFeedback: 'correct' | 'incorrect' | null;
+  hasSplits: boolean;
+}
+
+export interface TransactionSplit {
+  id: string;
+  transactionId: string;
+  amount: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  categorySlug: string | null;
+  notes: string | null;
+}
+
+export interface SplitInput {
+  amount: string;
+  categoryId?: string | null;
+  notes?: string | null;
 }
 
 export interface TransactionUpdateBody {
@@ -364,6 +381,23 @@ export function fetchByMonth(
 
 export function fetchTransactionHistory(id: string): Promise<TransactionEdit[]> {
   return jget<TransactionEdit[]>(`/api/transactions/${id}/history`);
+}
+
+export function fetchTransactionSplits(id: string): Promise<TransactionSplit[]> {
+  return jget<TransactionSplit[]>(`/api/transactions/${id}/splits`);
+}
+
+export async function putTransactionSplits(id: string, splits: SplitInput[]): Promise<TransactionSplit[]> {
+  const res = await fetch(`/api/transactions/${id}/splits`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ splits }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? `put splits ${res.status}`);
+  }
+  return res.json() as Promise<TransactionSplit[]>;
 }
 
 export function fetchInsights(month?: string, accountId?: string): Promise<InsightsData> {

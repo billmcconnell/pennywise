@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * Canonical domain schemas. Mirror Appendix A of the PRD, narrowed by
- * locked decisions: tags yes / splits no for v1, household_id above user_id,
+ * locked decisions: tags yes / splits yes, household_id above user_id,
  * currency_code paired with every amount, soft-delete via archived_at.
  */
 
@@ -100,6 +100,30 @@ export const transactionUpdateSchema = z
   })
   .refine((d) => Object.keys(d).length > 0, { message: 'no fields to update' });
 export type TransactionUpdate = z.infer<typeof transactionUpdateSchema>;
+
+export const transactionSplitSchema = z.object({
+  id: z.string().uuid(),
+  transactionId: transactionIdSchema,
+  amount: moneySchema,
+  categoryId: categoryIdSchema.nullable(),
+  categoryName: z.string().nullable(),
+  categorySlug: z.string().nullable(),
+  notes: z.string().nullable(),
+});
+export type TransactionSplit = z.infer<typeof transactionSplitSchema>;
+
+export const splitUpsertSchema = z.object({
+  splits: z
+    .array(
+      z.object({
+        amount: moneySchema,
+        categoryId: categoryIdSchema.nullable().optional(),
+        notes: z.string().max(500).nullable().optional(),
+      }),
+    )
+    .max(50),
+});
+export type SplitUpsert = z.infer<typeof splitUpsertSchema>;
 
 export const ruleMatchTypeSchema = z.enum([
   'merchant_contains',

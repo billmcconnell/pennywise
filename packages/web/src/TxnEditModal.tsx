@@ -4,7 +4,10 @@ import {
   applyRulesNow,
   createRule,
   fetchTransactionHistory,
+  fetchTransactionSplits,
   patchTransaction,
+  putTransactionSplits,
+  type SplitInput,
   type Transaction,
   type TransactionUpdateBody,
 } from './api';
@@ -28,6 +31,21 @@ export function TxnEditModal(props: {
   const [tagsInput, setTagsInput] = useState(props.txn.tags.join(', '));
   const [categoryId, setCategoryId] = useState(props.txn.categoryId ?? '');
   const [step, setStep] = useState<Step>('editing');
+  const [splits, setSplits] = useState<SplitInput[]>([]);
+  const [splitsLoaded, setSplitsLoaded] = useState(false);
+
+  const splitsQ = useQuery({
+    queryKey: ['txn-splits', props.txn.id],
+    queryFn: () => fetchTransactionSplits(props.txn.id),
+    staleTime: 30 * 1000,
+  });
+
+  if (splitsQ.data && !splitsLoaded) {
+    setSplits(
+      splitsQ.data.map((s) => ({ amount: s.amount, categoryId: s.categoryId, notes: s.notes })),
+    );
+    setSplitsLoaded(true);
+  }
 
   const historyQ = useQuery({
     queryKey: ['txn-history', props.txn.id],
@@ -41,7 +59,9 @@ export function TxnEditModal(props: {
     qc.invalidateQueries({ queryKey: ['by-month'] });
     qc.invalidateQueries({ queryKey: ['top-merchants'] });
     qc.invalidateQueries({ queryKey: ['insights'] });
+    qc.invalidateQueries({ queryKey: ['category-trends'] });
     qc.invalidateQueries({ queryKey: ['txn-history', props.txn.id] });
+    qc.invalidateQueries({ queryKey: ['txn-splits', props.txn.id] });
   };
 
   const revert = useMutation({
@@ -79,7 +99,6 @@ export function TxnEditModal(props: {
     },
     onSuccess: (result) => {
       invalidateAll();
-      // Category changed and a category is selected — prompt to create a rule
       const categoryChanged = (categoryId || null) !== props.txn.categoryId;
       if (result !== null && categoryChanged && categoryId) {
         setStep('confirm-rule');
@@ -89,7 +108,14 @@ export function TxnEditModal(props: {
     },
   });
 
-  // Prefer merchant name for rule pattern (more stable than description)
+  const saveSplits = useMutation({
+    mutationFn: () => putTransactionSplits(props.txn.id, splits),
+    onSuccess: () => {
+      invalidateAll();
+      props.onClose();
+    },
+  });
+
   const rulePattern = merchant.trim() || description.trim();
   const ruleMatchType = merchant.trim() ? 'merchant_contains' : 'description_contains';
   const categoryName = props.categories.find((c) => c.id === categoryId)?.label ?? '';
@@ -117,6 +143,12 @@ export function TxnEditModal(props: {
       props.onClose();
     },
   });
+
+  const hasSplits = splits.length >= 2;
+  const txnAmount = Math.abs(Number(props.txn.amount));
+  const allocatedAmount = splits.reduce((s, sp) => s + (parseFloat(sp.amount) || 0), 0);
+  const remaining = txnAmount - allocatedAmount;
+  const splitSumOk = Math.abs(remaining) < 0.01;
 
   return (
     <div
@@ -218,20 +250,22 @@ export function TxnEditModal(props: {
                   onChange={(e) => setMerchant(e.target.value)}
                 />
               </Field>
-              <Field label="Category">
-                <select
-                  className="rounded-xl border border-zinc-300 px-2 py-1"
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                >
-                  <option value="">—</option>
-                  {props.categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              {!hasSplits && (
+                <Field label="Category">
+                  <select
+                    className="rounded-xl border border-zinc-300 px-2 py-1"
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                  >
+                    <option value="">—</option>
+                    {props.categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
               <Field label="Tags (comma-separated)">
                 <input
                   className="rounded-xl border border-zinc-300 px-2 py-1"
@@ -249,8 +283,115 @@ export function TxnEditModal(props: {
               </Field>
             </div>
 
-            {save.error && (
-              <p className="mt-3 text-sm text-red-600">{(save.error as Error).message}</p>
+            {/* Splits section */}
+            <div className="mt-4 border-t border-zinc-100 pt-3">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                  Split transaction
+                </p>
+                {hasSplits && (
+                  <button
+                    type="button"
+                    onClick={() => setSplits([])}
+                    className="text-xs text-zinc-400 hover:text-zinc-700"
+                  >
+                    Remove splits
+                  </button>
+                )}
+              </div>
+
+              {hasSplits ? (
+                <div className="flex flex-col gap-2">
+                  {splits.map((sp, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        placeholder="0.00"
+                        className="w-24 shrink-0 rounded-xl border border-zinc-300 px-2 py-1 text-sm tabular-nums"
+                        value={sp.amount}
+                        onChange={(e) => {
+                          const next = [...splits];
+                          next[i] = { ...next[i]!, amount: e.target.value };
+                          setSplits(next);
+                        }}
+                      />
+                      <select
+                        className="min-w-0 flex-1 rounded-xl border border-zinc-300 px-2 py-1 text-sm"
+                        value={sp.categoryId ?? ''}
+                        onChange={(e) => {
+                          const next = [...splits];
+                          next[i] = { ...next[i]!, categoryId: e.target.value || null };
+                          setSplits(next);
+                        }}
+                      >
+                        <option value="">—</option>
+                        {props.categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setSplits(splits.filter((_, j) => j !== i))}
+                        className="shrink-0 text-zinc-300 hover:text-rose-500"
+                        aria-label="Remove split"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => setSplits([...splits, { amount: '', categoryId: null }])}
+                    className="mt-1 self-start text-xs text-teal-700 hover:underline"
+                  >
+                    + Add row
+                  </button>
+
+                  <div
+                    className={`mt-1 text-xs tabular-nums ${
+                      splitSumOk
+                        ? 'text-emerald-600'
+                        : remaining < 0
+                          ? 'text-rose-600'
+                          : 'text-amber-600'
+                    }`}
+                  >
+                    {fmtMoney(allocatedAmount.toFixed(2))} allocated
+                    {!splitSumOk && (
+                      <>
+                        {' · '}
+                        {remaining > 0
+                          ? `${fmtMoney(remaining.toFixed(2))} remaining`
+                          : `${fmtMoney(Math.abs(remaining).toFixed(2))} over`}
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSplits([
+                      { amount: '', categoryId: null },
+                      { amount: '', categoryId: null },
+                    ])
+                  }
+                  className="text-xs text-teal-700 hover:underline"
+                >
+                  + Split this transaction
+                </button>
+              )}
+            </div>
+
+            {(save.error || saveSplits.error) && (
+              <p className="mt-3 text-sm text-red-600">
+                {((save.error || saveSplits.error) as Error).message}
+              </p>
             )}
             {revert.error && (
               <p className="mt-3 text-sm text-red-600">{(revert.error as Error).message}</p>
@@ -293,14 +434,25 @@ export function TxnEditModal(props: {
                 >
                   Cancel
                 </button>
-                <button
-                  type="button"
-                  disabled={save.isPending}
-                  onClick={() => save.mutate()}
-                  className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
-                >
-                  {save.isPending ? 'Saving…' : 'Save'}
-                </button>
+                {hasSplits ? (
+                  <button
+                    type="button"
+                    disabled={saveSplits.isPending || !splitSumOk || splits.length < 2}
+                    onClick={() => saveSplits.mutate()}
+                    className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
+                  >
+                    {saveSplits.isPending ? 'Saving…' : 'Save splits'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={save.isPending}
+                    onClick={() => save.mutate()}
+                    className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
+                  >
+                    {save.isPending ? 'Saving…' : 'Save'}
+                  </button>
+                )}
               </div>
             </footer>
           </>

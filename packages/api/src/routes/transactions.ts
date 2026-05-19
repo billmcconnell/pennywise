@@ -2,9 +2,9 @@ import type { FastifyPluginAsync } from 'fastify';
 import { alias } from 'drizzle-orm/pg-core';
 import { and, count, desc, eq, gte, ilike, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { transactionUpdateSchema } from '@pennywise/shared';
+import { splitUpsertSchema, transactionUpdateSchema } from '@pennywise/shared';
 import type { Db } from '../db/client.js';
-import { accounts, categories, categorizationRules, transactionEdits, transactions } from '../db/schema.js';
+import { accounts, categories, categorizationRules, transactionEdits, transactionSplits, transactions } from '../db/schema.js';
 
 const PAGE_SIZE = 50;
 
@@ -149,7 +149,16 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     if (categoryId === 'none') {
       conditions.push(isNull(transactions.categoryId));
     } else if (categoryId) {
-      conditions.push(eq(transactions.categoryId, categoryId));
+      // Expand parent categories to include all their children
+      const children = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(eq(categories.parentId, categoryId));
+      if (children.length > 0) {
+        conditions.push(inArray(transactions.categoryId, [categoryId, ...children.map((c) => c.id)]));
+      } else {
+        conditions.push(eq(transactions.categoryId, categoryId));
+      }
     }
 
     const where = and(...conditions);
@@ -173,6 +182,7 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
           categoryName: categories.name,
           autoCategorized: transactions.autoCategorized,
           categorizationFeedback: transactions.categorizationFeedback,
+          hasSplits: sql<boolean>`exists (select 1 from transaction_splits where transaction_id = ${transactions.id})`,
         })
         .from(transactions)
         .leftJoin(categories, eq(transactions.categoryId, categories.id))
@@ -357,28 +367,41 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     }
     const { month, accountId } = parsed.data;
 
-    const conditions = [eq(transactions.householdId, household.id)];
-    if (accountId) conditions.push(eq(transactions.accountId, accountId));
-    if (month) {
-      const { start, end } = monthBounds(month);
-      conditions.push(gte(transactions.transactionDate, start));
-      conditions.push(lt(transactions.transactionDate, end));
-    }
+    const monthFilter = month
+      ? sql`AND t.transaction_date >= ${monthBounds(month).start} AND t.transaction_date < ${monthBounds(month).end}`
+      : sql``;
+    const accountFilter = accountId ? sql`AND t.account_id = ${accountId}::uuid` : sql``;
 
-    const rows = await db
-      .select({
-        categoryId: categories.id,
-        slug: categories.slug,
-        name: categories.name,
-        total: sql<string>`coalesce(sum(${transactions.amount}), '0')`,
-        count: sql<number>`cast(count(*) as int)`,
-      })
-      .from(transactions)
-      .leftJoin(categories, eq(transactions.categoryId, categories.id))
-      .where(and(...conditions))
-      .groupBy(categories.id, categories.slug, categories.name);
+    const rows = await db.execute<{
+      categoryId: string | null;
+      slug: string | null;
+      name: string | null;
+      total: string;
+      count: number;
+    }>(sql`
+      WITH non_split AS (
+        SELECT c.id AS category_id, c.slug, c.name, t.amount, 1::int AS cnt
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.household_id = ${household.id} ${monthFilter} ${accountFilter}
+          AND NOT EXISTS (SELECT 1 FROM transaction_splits WHERE transaction_id = t.id)
+      ),
+      split_parts AS (
+        SELECT c.id AS category_id, c.slug, c.name, ts.amount, 0::int AS cnt
+        FROM transaction_splits ts
+        JOIN transactions t ON t.id = ts.transaction_id
+        LEFT JOIN categories c ON ts.category_id = c.id
+        WHERE t.household_id = ${household.id} ${monthFilter} ${accountFilter}
+      )
+      SELECT
+        category_id AS "categoryId", slug, name,
+        coalesce(sum(amount)::text, '0') AS total,
+        sum(cnt)::int AS count
+      FROM (SELECT * FROM non_split UNION ALL SELECT * FROM split_parts) sub
+      GROUP BY category_id, slug, name
+    `);
 
-    return rows;
+    return rows.rows;
   });
 
   app.get('/transactions/summary', async (req, reply) => {
@@ -527,38 +550,48 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     }
     if (!from) from = addMonths(to, -11);
 
-    const fromBounds = monthBounds(from);
-    const toBounds = monthBounds(to);
+    const { start: fromStart } = monthBounds(from);
+    const { end: toEnd } = monthBounds(to);
+    const accountFilter = accountId ? sql`AND t.account_id = ${accountId}::uuid` : sql``;
 
-    const parentCats = alias(categories, 'parent_cats');
+    const rows = await db.execute<{ month: string; slug: string; name: string; total: string }>(sql`
+      WITH non_split AS (
+        SELECT
+          to_char(t.transaction_date, 'YYYY-MM') AS month,
+          coalesce(pc.slug, c.slug, 'uncategorized') AS slug,
+          coalesce(pc.name, c.name, 'Uncategorized') AS name,
+          t.amount
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        LEFT JOIN categories pc ON c.parent_id = pc.id
+        WHERE t.household_id = ${household.id}
+          AND t.transaction_date >= ${fromStart}
+          AND t.transaction_date < ${toEnd}
+          AND t.amount > 0 ${accountFilter}
+          AND NOT EXISTS (SELECT 1 FROM transaction_splits WHERE transaction_id = t.id)
+      ),
+      split_parts AS (
+        SELECT
+          to_char(t.transaction_date, 'YYYY-MM') AS month,
+          coalesce(pc.slug, c.slug, 'uncategorized') AS slug,
+          coalesce(pc.name, c.name, 'Uncategorized') AS name,
+          ts.amount
+        FROM transaction_splits ts
+        JOIN transactions t ON t.id = ts.transaction_id
+        LEFT JOIN categories c ON ts.category_id = c.id
+        LEFT JOIN categories pc ON c.parent_id = pc.id
+        WHERE t.household_id = ${household.id}
+          AND t.transaction_date >= ${fromStart}
+          AND t.transaction_date < ${toEnd}
+          AND ts.amount > 0 ${accountFilter}
+      )
+      SELECT month, slug, name, coalesce(sum(amount)::text, '0') AS total
+      FROM (SELECT * FROM non_split UNION ALL SELECT * FROM split_parts) sub
+      GROUP BY month, slug, name
+      ORDER BY month
+    `);
 
-    const conditions = [
-      eq(transactions.householdId, household.id),
-      gte(transactions.transactionDate, fromBounds.start),
-      lt(transactions.transactionDate, toBounds.end),
-      sql`${transactions.amount} > 0`,
-    ];
-    if (accountId) conditions.push(eq(transactions.accountId, accountId));
-
-    const monthExpr = sql<string>`to_char(${transactions.transactionDate}, 'YYYY-MM')`;
-    const slugExpr = sql<string>`coalesce(${parentCats.slug}, ${categories.slug}, 'uncategorized')`;
-    const nameExpr = sql<string>`coalesce(${parentCats.name}, ${categories.name}, 'Uncategorized')`;
-
-    const rows = await db
-      .select({
-        month: monthExpr,
-        slug: slugExpr,
-        name: nameExpr,
-        total: sql<string>`coalesce(sum(${transactions.amount}), '0')`,
-      })
-      .from(transactions)
-      .leftJoin(categories, eq(transactions.categoryId, categories.id))
-      .leftJoin(parentCats, eq(categories.parentId, parentCats.id))
-      .where(and(...conditions))
-      .groupBy(monthExpr, slugExpr, nameExpr)
-      .orderBy(monthExpr);
-
-    return rows;
+    return rows.rows;
   });
 
   app.get('/transactions/insights', async (req, reply) => {
@@ -880,5 +913,101 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
       .orderBy(sql`1 DESC`);
 
     return rows.map((r) => r.month);
+  });
+
+  app.get<{ Params: { id: string } }>('/transactions/:id/splits', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const idCheck = z.string().uuid().safeParse(req.params.id);
+    if (!idCheck.success) return reply.code(400).send({ error: 'bad id' });
+
+    const txn = await db
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(and(eq(transactions.id, req.params.id), eq(transactions.householdId, household.id)))
+      .limit(1);
+    if (txn.length === 0) return reply.code(404).send({ error: 'not found' });
+
+    const splits = await db
+      .select({
+        id: transactionSplits.id,
+        transactionId: transactionSplits.transactionId,
+        amount: transactionSplits.amount,
+        categoryId: transactionSplits.categoryId,
+        categoryName: categories.name,
+        categorySlug: categories.slug,
+        notes: transactionSplits.notes,
+      })
+      .from(transactionSplits)
+      .leftJoin(categories, eq(transactionSplits.categoryId, categories.id))
+      .where(eq(transactionSplits.transactionId, req.params.id))
+      .orderBy(transactionSplits.createdAt);
+
+    return splits;
+  });
+
+  app.put<{ Params: { id: string } }>('/transactions/:id/splits', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const idCheck = z.string().uuid().safeParse(req.params.id);
+    if (!idCheck.success) return reply.code(400).send({ error: 'bad id' });
+
+    const body = splitUpsertSchema.safeParse(req.body);
+    if (!body.success) return reply.code(400).send({ error: 'bad body', detail: body.error.flatten() });
+
+    const txnRow = await db
+      .select({ amount: transactions.amount })
+      .from(transactions)
+      .where(and(eq(transactions.id, req.params.id), eq(transactions.householdId, household.id)))
+      .limit(1);
+    if (txnRow.length === 0) return reply.code(404).send({ error: 'not found' });
+
+    const { splits } = body.data;
+
+    if (splits.length === 1) {
+      return reply.code(400).send({ error: 'splits must have 0 (to clear) or 2+ entries' });
+    }
+
+    if (splits.length >= 2) {
+      const txnAmount = Math.abs(Number(txnRow[0]!.amount));
+      const splitSum = splits.reduce((s: number, sp: { amount: string }) => s + Number(sp.amount), 0);
+      if (Math.abs(splitSum - txnAmount) > 0.01) {
+        return reply.code(400).send({
+          error: `split amounts sum to ${splitSum.toFixed(2)} but transaction is ${txnAmount.toFixed(2)}`,
+        });
+      }
+    }
+
+    await db.delete(transactionSplits).where(eq(transactionSplits.transactionId, req.params.id));
+
+    if (splits.length >= 2) {
+      await db.insert(transactionSplits).values(
+        splits.map((sp: { amount: string; categoryId?: string | null | undefined; notes?: string | null | undefined }) => ({
+          transactionId: req.params.id,
+          amount: sp.amount,
+          categoryId: sp.categoryId ?? null,
+          notes: sp.notes ?? null,
+        })),
+      );
+    }
+
+    const result = await db
+      .select({
+        id: transactionSplits.id,
+        transactionId: transactionSplits.transactionId,
+        amount: transactionSplits.amount,
+        categoryId: transactionSplits.categoryId,
+        categoryName: categories.name,
+        categorySlug: categories.slug,
+        notes: transactionSplits.notes,
+      })
+      .from(transactionSplits)
+      .leftJoin(categories, eq(transactionSplits.categoryId, categories.id))
+      .where(eq(transactionSplits.transactionId, req.params.id))
+      .orderBy(transactionSplits.createdAt);
+
+    return result;
   });
 };

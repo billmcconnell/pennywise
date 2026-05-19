@@ -71,6 +71,20 @@
       "when": 1778509237242,
       "tag": "0009_friendly_rictor",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1778606566585,
+      "tag": "0010_ambiguous_infant_terrible",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779149060656,
+      "tag": "0011_marvelous_imperial_guard",
+      "breakpoints": true
     }
   ]
 }
