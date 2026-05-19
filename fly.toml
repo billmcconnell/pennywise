@@ -5,7 +5,7 @@
 #   fly secrets set APP_URL=https://<your-app>.fly.dev
 #   fly secrets set ANTHROPIC_API_KEY=...   # optional, for AI categorization
 
-app            = 'pennywise'
+app            = 'pennywise-app'
 primary_region = 'iad'
 
 [build]
