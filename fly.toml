@@ -2,8 +2,11 @@
 # Run `fly launch` to create the app, then set secrets:
 #   fly secrets set DATABASE_URL=... AUTH_SECRET=... ALLOWED_EMAILS=billmcc@gmail.com
 #   fly secrets set SMTP_HOST=... SMTP_PORT=... SMTP_USER=... SMTP_PASS=...
-#   fly secrets set APP_URL=https://<your-app>.fly.dev
+#   fly secrets set APP_URL=https://pennywise.mcconnalino.com
 #   fly secrets set ANTHROPIC_API_KEY=...   # optional, for AI categorization
+# Custom domain:
+#   fly certs add pennywise.mcconnalino.com
+#   Add CNAME record: pennywise.mcconnalino.com → pennywise-app.fly.dev
 
 app            = 'pennywise-app'
 primary_region = 'iad'

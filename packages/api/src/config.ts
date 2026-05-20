@@ -24,7 +24,7 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().int().positive().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  SMTP_FROM: z.string().default('Pennywise <noreply@pennywise.app>'),
+  SMTP_FROM: z.string().default('Pennywise <noreply@pennywise.mcconnalino.com>'),
   ANTHROPIC_API_KEY: z.string().optional(),
   WEB_DIST: z.string().default('../web/dist'),
 });

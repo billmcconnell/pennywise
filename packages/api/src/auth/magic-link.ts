@@ -76,9 +76,11 @@ export function magicLinkPlugin(db: Db, config: AppConfig) {
       const verifyUrl = `${config.APP_URL}/api/auth/verify?token=${token}`;
 
       if (config.SMTP_HOST) {
+        const port = config.SMTP_PORT ?? 587;
         const transporter = nodemailer.createTransport({
           host: config.SMTP_HOST,
-          port: config.SMTP_PORT ?? 587,
+          port,
+          secure: port === 465,
           auth:
             config.SMTP_USER ? { user: config.SMTP_USER, pass: config.SMTP_PASS } : undefined,
         });
