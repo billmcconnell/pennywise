@@ -23,6 +23,7 @@ export function parseWellsFargoCsv(csvText: string): WellsFargoParseResult {
     skip_empty_lines: true,
     relax_column_count: true,
     trim: true,
+    bom: true,
   }) as string[][];
 
   const rows: ParsedWellsFargoRow[] = [];

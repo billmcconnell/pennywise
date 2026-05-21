@@ -24,6 +24,7 @@ export function parseBofaCsv(csvText: string): BofaParseResult {
     skip_empty_lines: true,
     relax_column_count: true,
     trim: true,
+    bom: true,
   }) as Record<string, string>[];
 
   if (records.length === 0) return { rows: [], errors: [] };

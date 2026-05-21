@@ -676,9 +676,12 @@ function UploadForm(props: { accounts: Account[] }) {
         {upload.isPending ? 'Uploading…' : 'Upload'}
       </button>
       {upload.data && (
-        <span className="text-sm text-emerald-700">
+        <span className={`text-sm ${upload.data.parsed === 0 && upload.data.errors.length > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
           parsed {upload.data.parsed} · inserted {upload.data.inserted} · skipped{' '}
           {upload.data.skipped}
+          {upload.data.errors.length > 0 && (
+            <> · <span className="text-red-600">{upload.data.errors.length} row error{upload.data.errors.length !== 1 ? 's' : ''}: {upload.data.errors[0]!.message}</span></>
+          )}
         </span>
       )}
       {upload.error && (
