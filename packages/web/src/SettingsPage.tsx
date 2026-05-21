@@ -252,7 +252,7 @@ function InviteForm({ onCreated }: { onCreated: () => void }) {
           disabled={invite.isPending || !email.trim()}
           className="rounded bg-emerald-500 px-3 py-1.5 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
         >
-          {invite.isPending ? 'Creating…' : 'Create link'}
+          {invite.isPending ? 'Sending…' : 'Send invite'}
         </button>
       </form>
       {invite.error && (
@@ -269,7 +269,7 @@ function InviteForm({ onCreated }: { onCreated: () => void }) {
           </button>
         </div>
       )}
-      <p className="mt-2 text-xs text-zinc-400">Link expires in 7 days. Single use.</p>
+      <p className="mt-2 text-xs text-zinc-400">Invite email expires in 7 days. Single use.</p>
     </div>
   );
 }
