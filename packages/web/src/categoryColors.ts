@@ -10,12 +10,12 @@ export const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export const CATEGORY_PILL: Record<string, { bg: string; text: string }> = {
-  housing:        { bg: 'bg-violet-50',  text: 'text-violet-700'  },
-  transportation: { bg: 'bg-blue-50',    text: 'text-blue-700'    },
-  food:           { bg: 'bg-orange-50',  text: 'text-orange-700'  },
+  housing:        { bg: 'bg-blue-50',    text: 'text-blue-700'    },
+  transportation: { bg: 'bg-sky-50',     text: 'text-sky-700'     },
+  food:           { bg: 'bg-green-50',   text: 'text-green-700'   },
   healthcare:     { bg: 'bg-rose-50',    text: 'text-rose-700'    },
   personal:       { bg: 'bg-purple-50',  text: 'text-purple-700'  },
   financial:      { bg: 'bg-amber-50',   text: 'text-amber-700'   },
-  income:         { bg: 'bg-green-50',   text: 'text-green-700'   },
+  income:         { bg: 'bg-teal-50',    text: 'text-teal-700'    },
   uncategorized:  { bg: 'bg-zinc-100',   text: 'text-zinc-500'    },
 };
