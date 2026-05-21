@@ -82,9 +82,11 @@ export function isUsaaContent(buf: Buffer): boolean {
   return /^Date,Description,Original Description/i.test(head.trimStart());
 }
 
-// M/D/YY or MM/DD/YY → YYYY-MM-DD. 2-digit years assumed 2000s.
+// Accepts YYYY-MM-DD (ISO), M/D/YY, MM/DD/YY, M/D/YYYY, MM/DD/YYYY.
 function normalizeDate(raw: string): string {
-  const m = raw.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  const cleaned = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
+  const m = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (!m) throw new Error(`Invalid date: ${raw}`);
   const [, mm, dd, yy] = m;
   const yyyy = yy!.length === 2 ? `20${yy}` : yy!;

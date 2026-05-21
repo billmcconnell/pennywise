@@ -78,9 +78,11 @@ export function parseAmexCsv(csvText: string): ParseResult {
   return { rows, errors };
 }
 
-function normalizeDate(mmddyyyy: string): string {
-  const m = mmddyyyy.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!m) throw new Error(`Invalid date: ${mmddyyyy}`);
+function normalizeDate(raw: string): string {
+  const cleaned = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
+  const m = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) throw new Error(`Invalid date: ${raw}`);
   const [, mm, dd, yyyy] = m;
   return `${yyyy}-${mm!.padStart(2, '0')}-${dd!.padStart(2, '0')}`;
 }
