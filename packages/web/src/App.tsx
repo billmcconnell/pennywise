@@ -1971,8 +1971,8 @@ function TransactionTable(props: {
                   </button>
                   <button
                     type="button"
-                    title="Wrong — fix it"
-                    onClick={() => { props.onFeedback(r.id, false); props.onEdit(r); }}
+                    title="Wrong categorization"
+                    onClick={() => props.onFeedback(r.id, false)}
                     className="shrink-0 rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-500"
                   >
                     <IconThumbDown />
@@ -2076,8 +2076,8 @@ function TransactionTable(props: {
                         </button>
                         <button
                           type="button"
-                          title="Wrong — fix it"
-                          onClick={() => { props.onFeedback(r.id, false); props.onEdit(r); }}
+                          title="Wrong categorization"
+                          onClick={() => props.onFeedback(r.id, false)}
                           className="rounded p-1 text-zinc-400 hover:bg-red-50 hover:text-red-500"
                         >
                           <IconThumbDown />
