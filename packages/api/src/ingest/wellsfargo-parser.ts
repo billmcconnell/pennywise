@@ -69,8 +69,11 @@ export function isWellsFargoContent(buf: Buffer): boolean {
 }
 
 // MM/DD/YYYY → YYYY-MM-DD
+// Accepts YYYY-MM-DD (ISO), M/D/YY, MM/DD/YY, M/D/YYYY, MM/DD/YYYY.
 function normalizeDate(raw: string): string {
-  const m = raw.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  const cleaned = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
+  const m = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (!m) throw new Error(`Invalid date: ${raw}`);
   const [, mm, dd, yy] = m;
   const yyyy = yy!.length === 2 ? `20${yy}` : yy!;
