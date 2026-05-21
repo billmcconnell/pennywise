@@ -1,7 +1,9 @@
 import crypto from 'node:crypto';
+import nodemailer from 'nodemailer';
 import type { FastifyPluginAsync } from 'fastify';
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
+import type { AppConfig } from '../config.js';
 import { householdInvites, users } from '../db/schema.js';
 
 function hashToken(token: string): string {
@@ -12,7 +14,7 @@ function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
-export const householdRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) => {
+export const householdRoutes: (db: Db, config: AppConfig) => FastifyPluginAsync = (db, config) => async (app) => {
   app.get('/household/members', async (req, reply) => {
     if (!req.household) return reply.code(401).send({ error: 'unauthenticated' });
     return db
@@ -100,6 +102,27 @@ export const householdRoutes: (db: Db) => FastifyPluginAsync = (db) => async (ap
       expiresAt,
       createdBy: req.user?.id ?? null,
     });
+
+    const acceptUrl = `${config.APP_URL}/api/auth/accept-invite?token=${token}`;
+
+    if (config.SMTP_HOST) {
+      const port = config.SMTP_PORT ?? 587;
+      const transporter = nodemailer.createTransport({
+        host: config.SMTP_HOST,
+        port,
+        secure: port === 465,
+        auth: config.SMTP_USER ? { user: config.SMTP_USER, pass: config.SMTP_PASS } : undefined,
+      });
+      await transporter.sendMail({
+        from: config.SMTP_FROM,
+        to: email,
+        subject: `You've been invited to join Pennywise`,
+        text: `You've been invited to join a Pennywise household.\n\nAccept the invitation:\n${acceptUrl}\n\nThis link expires in 7 days.`,
+        html: `<p>You've been invited to join a Pennywise household.</p><p><a href="${acceptUrl}">Accept invitation</a></p><p>This link expires in 7 days.</p>`,
+      });
+    } else {
+      req.log.info({ acceptUrl }, 'invite link (SMTP not configured — use acceptUrl)');
+    }
 
     return { token, email, expiresAt };
   });

@@ -57,7 +57,7 @@ async function main() {
   await app.register(billRoutes(db), { prefix: '/api' });
   await app.register(goalRoutes(db), { prefix: '/api' });
   await app.register(settingsRoutes(db), { prefix: '/api' });
-  await app.register(householdRoutes(db), { prefix: '/api' });
+  await app.register(householdRoutes(db, config), { prefix: '/api' });
 
   const webDist = path.resolve(__dirname, '..', config.WEB_DIST);
   await app.register(fastifyStatic, {
