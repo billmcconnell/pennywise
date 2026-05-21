@@ -32,6 +32,8 @@ export const ruleMatchType = pgEnum('rule_match_type', [
 
 export const categorizationFeedback = pgEnum('categorization_feedback', ['correct', 'incorrect']);
 
+export const userRole = pgEnum('user_role', ['admin', 'member']);
+
 export const households = pgTable('households', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
@@ -249,6 +251,7 @@ export const users = pgTable(
     householdId: uuid('household_id')
       .notNull()
       .references(() => households.id, { onDelete: 'cascade' }),
+    role: userRole('role').notNull().default('member'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()

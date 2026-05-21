@@ -30,6 +30,7 @@ export const settingsRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app
   app.patch('/settings', async (req, reply) => {
     const household = req.household;
     if (!household) return reply.code(401).send({ error: 'no household' });
+    if (req.user?.role !== 'admin') return reply.code(403).send({ error: 'admin required' });
 
     const body = req.body as Partial<HouseholdPreferences>;
 

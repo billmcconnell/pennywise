@@ -611,7 +611,7 @@ export function fetchAvailableMonths(): Promise<string[]> {
 }
 
 export interface AuthMe {
-  user: { id: string; email: string } | null;
+  user: { id: string; email: string; role: 'admin' | 'member' } | null;
   household: { id: string; name: string };
 }
 
@@ -639,6 +639,7 @@ export async function logout(): Promise<void> {
 export interface HouseholdMember {
   id: string;
   email: string;
+  role: 'admin' | 'member';
   joinedAt: string;
 }
 
@@ -658,6 +659,18 @@ export async function removeMember(userId: string): Promise<void> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string }).error ?? `delete ${res.status}`);
+  }
+}
+
+export async function promoteMember(userId: string, role: 'admin' | 'member'): Promise<void> {
+  const res = await fetch(`/api/household/members/${userId}/role`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ role }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `promote ${res.status}`);
   }
 }
 

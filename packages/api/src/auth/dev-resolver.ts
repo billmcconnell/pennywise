@@ -8,7 +8,7 @@ const plugin: FastifyPluginAsync = async (app) => {
 
   app.addHook('onRequest', async (req) => {
     req.household = { id: '00000000-0000-0000-0000-000000000001', name: 'Dev Household' };
-    req.user = { id: '00000000-0000-0000-0000-000000000020', email: 'dev@pennywise.local' };
+    req.user = { id: '00000000-0000-0000-0000-000000000020', email: 'dev@pennywise.local', role: 'admin' };
   });
 
   app.get('/api/auth/me', async (req) => {

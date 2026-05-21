@@ -134,16 +134,18 @@ export function App() {
     return <LoginPage />;
   }
 
-  return <AppShell onLogout={handleLogout} showLogout={!!authQuery.data?.user} />;
+  const isAdmin = authQuery.data?.user?.role === 'admin';
+  return <AppShell onLogout={handleLogout} showLogout={!!authQuery.data?.user} isAdmin={isAdmin} />;
 }
 
 const MORE_VIEWS: View[] = ['goals', 'bills', 'rules', 'categories'];
 
-function AppShell({ onLogout, showLogout }: { onLogout: () => void; showLogout: boolean }) {
+function AppShell({ onLogout, showLogout, isAdmin }: { onLogout: () => void; showLogout: boolean; isAdmin: boolean }) {
   const [view, setView] = useState<View>(() => {
     const hash = window.location.hash.slice(1) as View;
     const VALID: View[] = ['dashboard', 'accounts', 'budgets', 'goals', 'bills', 'rules', 'categories', 'settings'];
-    return VALID.includes(hash) ? hash : 'dashboard';
+    const requested = VALID.includes(hash) ? hash : 'dashboard';
+    return requested === 'settings' && !isAdmin ? 'dashboard' : requested;
   });
   const [moreOpen, setMoreOpen] = useState(false);
   const isMoreActive = MORE_VIEWS.includes(view);
@@ -179,7 +181,7 @@ function AppShell({ onLogout, showLogout }: { onLogout: () => void; showLogout: 
             <TabButton active={view === 'bills'} onClick={() => navigate('bills')} icon={<NavIconReceipt />}>Bills</TabButton>
             <TabButton active={view === 'rules'} onClick={() => navigate('rules')} icon={<NavIconFilter />}>Rules</TabButton>
             <TabButton active={view === 'categories'} onClick={() => navigate('categories')} icon={<NavIconTag />}>Categories</TabButton>
-            <TabButton active={view === 'settings'} onClick={() => navigate('settings')} icon={<NavIconCog />}>Settings</TabButton>
+            {isAdmin && <TabButton active={view === 'settings'} onClick={() => navigate('settings')} icon={<NavIconCog />}>Settings</TabButton>}
           </nav>
 
           {/* Right side: sign out */}
@@ -213,7 +215,7 @@ function AppShell({ onLogout, showLogout }: { onLogout: () => void; showLogout: 
           <BottomNavButton active={view === 'dashboard'} onClick={() => navigate('dashboard')} label="Dashboard"><IconHome /></BottomNavButton>
           <BottomNavButton active={view === 'accounts'} onClick={() => navigate('accounts')} label="Accounts"><IconCard /></BottomNavButton>
           <BottomNavButton active={view === 'budgets'} onClick={() => navigate('budgets')} label="Budgets"><IconBars /></BottomNavButton>
-          <BottomNavButton active={view === 'settings'} onClick={() => navigate('settings')} label="Settings"><IconCog /></BottomNavButton>
+          {isAdmin && <BottomNavButton active={view === 'settings'} onClick={() => navigate('settings')} label="Settings"><IconCog /></BottomNavButton>}
           <BottomNavButton active={isMoreActive || moreOpen} onClick={() => setMoreOpen((o) => !o)} label="More"><IconEllipsis /></BottomNavButton>
         </div>
       </nav>

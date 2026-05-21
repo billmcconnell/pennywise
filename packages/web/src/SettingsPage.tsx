@@ -5,9 +5,11 @@ import {
   fetchInvites,
   fetchMembers,
   fetchSettings,
+  promoteMember,
   removeMember,
   revokeInvite,
   updateSettings,
+  type AuthMe,
   type HouseholdSettings,
 } from './api';
 
@@ -122,11 +124,20 @@ function SettingsForm(props: {
 
 function MembersSection() {
   const qc = useQueryClient();
+  const authData = qc.getQueryData<AuthMe>(['auth/me']);
+  const currentUserId = authData?.user?.id;
+
   const membersQ = useQuery({ queryKey: ['household-members'], queryFn: fetchMembers });
   const invitesQ = useQuery({ queryKey: ['household-invites'], queryFn: fetchInvites });
 
   const removeM = useMutation({
     mutationFn: removeMember,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['household-members'] }),
+  });
+
+  const promoteM = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: 'admin' | 'member' }) =>
+      promoteMember(userId, role),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['household-members'] }),
   });
 
@@ -148,28 +159,55 @@ function MembersSection() {
             {membersQ.data.map((m) => (
               <li key={m.id} className="flex items-center justify-between py-2">
                 <div>
-                  <p className="text-sm font-medium text-zinc-800">{m.email}</p>
+                  <p className="text-sm font-medium text-zinc-800">
+                    {m.email}
+                    {m.role === 'admin' && (
+                      <span className="ml-2 rounded bg-teal-100 px-1.5 py-0.5 text-xs font-medium text-teal-700">
+                        Admin
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-zinc-400">
                     Joined {new Date(m.joinedAt).toLocaleDateString()}
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    if (confirm(`Remove ${m.email} from this household?`)) {
-                      removeM.mutate(m.id);
-                    }
-                  }}
-                  disabled={removeM.isPending}
-                  className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40"
-                >
-                  Remove
-                </button>
+                {m.id !== currentUserId && (
+                  <div className="flex items-center gap-3">
+                    {m.role === 'member' && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Make ${m.email} an admin?`)) {
+                            promoteM.mutate({ userId: m.id, role: 'admin' });
+                          }
+                        }}
+                        disabled={promoteM.isPending}
+                        className="text-xs text-teal-600 hover:text-teal-800 disabled:opacity-40"
+                      >
+                        Make admin
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (confirm(`Remove ${m.email} from this household?`)) {
+                          removeM.mutate(m.id);
+                        }
+                      }}
+                      disabled={removeM.isPending}
+                      className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
         )}
         {removeM.error && (
           <p className="mt-2 text-xs text-red-600">{(removeM.error as Error).message}</p>
+        )}
+        {promoteM.error && (
+          <p className="mt-2 text-xs text-red-600">{(promoteM.error as Error).message}</p>
         )}
       </div>
 

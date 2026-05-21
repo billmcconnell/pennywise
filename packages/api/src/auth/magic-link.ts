@@ -38,6 +38,7 @@ export function magicLinkPlugin(db: Db, config: AppConfig) {
         .select({
           userId: sessions.userId,
           userEmail: users.email,
+          userRole: users.role,
           householdId: users.householdId,
           householdName: households.name,
         })
@@ -51,12 +52,12 @@ export function magicLinkPlugin(db: Db, config: AppConfig) {
       if (!row) return;
 
       req.household = { id: row.householdId, name: row.householdName };
-      req.user = { id: row.userId, email: row.userEmail };
+      req.user = { id: row.userId, email: row.userEmail, role: row.userRole };
     });
 
     app.get('/api/auth/me', async (req, reply) => {
       if (!req.household || !req.user) return reply.code(401).send({ error: 'unauthenticated' });
-      return { user: req.user, household: req.household };
+      return { user: { id: req.user.id, email: req.user.email, role: req.user.role }, household: req.household };
     });
 
     app.post<{ Body: { email: string } }>('/api/auth/send', async (req, reply) => {
@@ -139,7 +140,7 @@ export function magicLinkPlugin(db: Db, config: AppConfig) {
         await seedHousehold(db, household.id);
         const newUsers = await db
           .insert(users)
-          .values({ email: magicToken.email, householdId: household.id })
+          .values({ email: magicToken.email, householdId: household.id, role: 'admin' })
           .returning();
         user = newUsers[0];
         if (!user) throw new Error('failed to create user');

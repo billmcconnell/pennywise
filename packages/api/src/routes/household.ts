@@ -14,17 +14,48 @@ function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
+function requireAdmin(req: { user: { role: string } | null }, reply: { code: (n: number) => { send: (b: unknown) => unknown } }) {
+  if (!req.user || req.user.role !== 'admin') {
+    reply.code(403).send({ error: 'admin required' });
+    return false;
+  }
+  return true;
+}
+
 export const householdRoutes: (db: Db, config: AppConfig) => FastifyPluginAsync = (db, config) => async (app) => {
   app.get('/household/members', async (req, reply) => {
     if (!req.household) return reply.code(401).send({ error: 'unauthenticated' });
     return db
-      .select({ id: users.id, email: users.email, joinedAt: users.createdAt })
+      .select({ id: users.id, email: users.email, role: users.role, joinedAt: users.createdAt })
       .from(users)
       .where(eq(users.householdId, req.household.id));
   });
 
+  app.patch<{ Params: { userId: string }; Body: { role: 'admin' | 'member' } }>(
+    '/household/members/:userId/role',
+    async (req, reply) => {
+      if (!req.household || !req.user) return reply.code(401).send({ error: 'unauthenticated' });
+      if (!requireAdmin(req, reply)) return;
+      const { userId } = req.params;
+      const { role } = req.body as { role: 'admin' | 'member' };
+      if (!['admin', 'member'].includes(role)) return reply.code(400).send({ error: 'invalid role' });
+      if (userId === req.user.id) return reply.code(400).send({ error: 'cannot change your own role' });
+
+      const [target] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.id, userId), eq(users.householdId, req.household.id)))
+        .limit(1);
+      if (!target) return reply.code(404).send({ error: 'member not found' });
+
+      await db.update(users).set({ role }).where(eq(users.id, userId));
+      return { ok: true };
+    },
+  );
+
   app.delete<{ Params: { userId: string } }>('/household/members/:userId', async (req, reply) => {
     if (!req.household || !req.user) return reply.code(401).send({ error: 'unauthenticated' });
+    if (!requireAdmin(req, reply)) return;
     const { userId } = req.params;
     if (userId === req.user.id) return reply.code(400).send({ error: 'cannot remove yourself' });
 
@@ -60,7 +91,8 @@ export const householdRoutes: (db: Db, config: AppConfig) => FastifyPluginAsync 
   });
 
   app.post<{ Body: { email: string } }>('/household/invite', async (req, reply) => {
-    if (!req.household) return reply.code(401).send({ error: 'unauthenticated' });
+    if (!req.household || !req.user) return reply.code(401).send({ error: 'unauthenticated' });
+    if (!requireAdmin(req, reply)) return;
 
     const email = (req.body as { email: string }).email?.toLowerCase().trim();
     if (!email) return reply.code(400).send({ error: 'email required' });
@@ -130,7 +162,8 @@ export const householdRoutes: (db: Db, config: AppConfig) => FastifyPluginAsync 
   app.delete<{ Params: { inviteId: string } }>(
     '/household/invites/:inviteId',
     async (req, reply) => {
-      if (!req.household) return reply.code(401).send({ error: 'unauthenticated' });
+      if (!req.household || !req.user) return reply.code(401).send({ error: 'unauthenticated' });
+      if (!requireAdmin(req, reply)) return;
       await db
         .delete(householdInvites)
         .where(
