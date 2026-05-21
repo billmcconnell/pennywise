@@ -57,14 +57,16 @@ Individuals who want to understand their personal spending habits without connec
 
 ### 4.1 User Authentication & Account Management
 
-**Requirements:**
-- Secure user registration and login (email + password minimum)
-- Password requirements: minimum 12 characters, complexity rules
-- Optional: Two-factor authentication (2FA)
-- Account settings page for profile management
-- Secure session management with auto-logout after inactivity
+**Implemented approach (shipped):**
+- **Magic-link authentication** — no passwords. Users enter their email and receive a time-limited sign-in link (15-minute expiry). No credentials stored.
+- **Household model** — each sign-up creates a household. Multiple users can share one household via invitation. All financial data is scoped to the household, not the individual user.
+- **Invite flow** — admins enter an invitee's email address; an accept-invite link is emailed directly to them via SMTP (Resend). Link expires in 7 days, single-use.
+- **Role-based access** — two roles: `admin` and `member`. The first user to create a household is automatically admin. Invited users join as members. Admins can promote members to admin from the Settings page.
+- **Admin-only actions** — sending invites, revoking invites, removing members, changing household settings. The Settings page is hidden entirely from non-admin members.
+- **Session management** — HTTP-only secure cookie, 30-day TTL in production, invalidated on logout.
+- **SMTP** — Resend via SMTP (port 465 / implicit TLS). Sending domain: `mcconnalino.com` (verified).
 
-**Priority:** P0 (Must Have)
+**Priority:** P0 (Must Have) — shipped Phase 1 (dev resolver) + Phase 4 (magic-link, roles, invites)
 
 ---
 
@@ -155,11 +157,13 @@ Individuals who want to understand their personal spending habits without connec
   - **Income**: Salary, Freelance, Investment Income, Other
   - **Uncategorized**: Default catch-all
 
-**Categorization Logic:**
-- Rule-based matching on merchant names (e.g., "Whole Foods" → Groceries)
-- User-defined rules take precedence
-- Machine learning opportunity (future): Learn from user corrections
-- Confidence scoring for auto-categorizations
+**Categorization Logic (shipped):**
+- **Phase 1 — Rules engine**: Rule-based matching on merchant/description (contains, equals, regex). User-defined rules always take precedence over LLM results.
+- **Phase 2 — LLM categorization**: Transactions not matched by a rule are sent in batches of 20 to Claude Haiku (Anthropic API) for categorization. The system prompt includes the household's category list and up to 30 recent user corrections as few-shot examples, improving accuracy over time.
+- **Confidence thresholds**: LLM results with confidence ≥ 0.85 are applied to the transaction. Results with confidence ≥ 0.90 that include a match term are automatically promoted to new rules, reducing future LLM calls.
+- **Graceful fallback**: If the Anthropic API is unavailable or the key is not set, imports fall back to rules-only categorization without error.
+- **User feedback loop**: Users can mark any auto-categorized transaction as `correct` or `incorrect` via inline thumbs in the transaction list. Feedback is stored on the transaction and used as few-shot examples in future LLM calls. Thumbs-down records the signal without interrupting the user's flow.
+- **Confidence scoring**: `auto_categorized` flag and `confidence_score` (0–1) stored on each transaction.
 
 **Customization:**
 - Users can create custom categories and subcategories
@@ -248,13 +252,16 @@ Individuals who want to understand their personal spending habits without connec
 
 ### 4.8 Settings & Preferences
 
-**Requirements:**
-- Default time zone and currency
-- Date format preferences
-- Default dashboard time period
+**Implemented (admin-only — shipped Phase 4):**
+- Settings page is only accessible to users with the `admin` role. Non-admin members do not see the Settings tab.
+- **Household settings**: default dashboard time period (`current`, `previous`, `latest_data`) and chart month range (3, 6, or 12 months).
+- **Member management**: view all household members with their role and join date. Admins can remove members or promote members to admin. An admin cannot remove or demote themselves.
+- **Invite management**: send invite emails to new members, view pending invites with expiry dates, revoke pending invites.
+
+**Not yet implemented:**
+- Time zone and currency preferences
 - Email notification preferences
-- Data retention policy (user-controlled)
-- Account deletion with data purge
+- Data retention policy / account deletion
 
 **Priority:** P1 (Nice to Have)
 
@@ -301,35 +308,38 @@ Individuals who want to understand their personal spending habits without connec
 
 ---
 
-## 6. Technical Architecture (High-Level)
+## 6. Technical Architecture
 
-### 6.1 Frontend
-- **Framework**: React or Vue.js
-- **Charting**: D3.js, Chart.js, or Recharts
-- **State Management**: Redux or Context API
-- **Styling**: Tailwind CSS or Material-UI
+> All decisions below are locked. Do not re-propose alternatives.
 
-### 6.2 Backend
-- **API**: RESTful API (Node.js/Express or Python/Django)
-- **Authentication**: JWT-based
-- **File Processing**: Background job queue (Bull, Celery)
+### 6.1 Frontend (locked)
+- **Framework**: React 18 + Vite
+- **Charting**: Recharts
+- **State / Data fetching**: TanStack Query
+- **Styling**: Tailwind CSS
+- **Language**: TypeScript
 
-### 6.3 Database
-- **Primary**: PostgreSQL (relational structure for transactions)
-- **Considerations**: 
-  - Users table
-  - Accounts table
-  - Transactions table (indexed on date, account_id, user_id)
-  - Categories table
-  - Rules table (for auto-categorization)
+### 6.2 Backend (locked)
+- **Runtime**: Node.js 22 + TypeScript
+- **API framework**: Fastify
+- **ORM**: Drizzle ORM
+- **Job queue**: pg-boss (Postgres-backed)
+- **Authentication**: Magic-link via email (nodemailer + Resend SMTP). HTTP-only session cookie.
+- **AI categorization**: Anthropic API (Claude Haiku) via `@anthropic-ai/sdk`
 
-### 6.4 File Storage
-- **Uploaded Files**: AWS S3 or equivalent
-- **Retention**: 90 days post-processing, then delete
+### 6.3 Database (locked)
+- **Primary**: PostgreSQL 16
+- **Key tables**: households, users (with role), accounts, transactions (with auto_categorized, confidence_score, categorization_feedback), categories, rules, magic_tokens, sessions, household_invites, budgets, savings_goals, recurring_bills
 
-### 6.5 Hosting
-- **Options**: AWS, Google Cloud, Heroku, Vercel/Netlify (frontend)
-- **Considerations**: Auto-scaling, CDN for static assets
+### 6.4 Monorepo structure (locked)
+- `packages/api` — Fastify server, Drizzle migrations
+- `packages/web` — Vite + React SPA
+- `packages/shared` — Zod schemas and shared types
+
+### 6.5 Hosting (locked)
+- **Platform**: Fly.io (`pennywise-app`)
+- **Custom domain**: `pennywise.mcconnalino.com` (TLS via Let's Encrypt / Fly certs)
+- **Email**: Resend (domain: `mcconnalino.com`)
 
 ---
 
@@ -390,27 +400,31 @@ Individuals who want to understand their personal spending habits without connec
 
 **Success Criteria**: Feature-complete for target users
 
-### Phase 4: Enhancement (Ongoing)
-- User feedback integration
-- Machine learning for categorization
-- Budgeting features
-- Goal tracking
-- Bill reminders
+### Phase 4: Enhancement (Ongoing) — shipped 2026-05-21
+
+- ✅ **LLM categorization** — Claude Haiku categorizes unmatched transactions at import; high-confidence results auto-promote to rules; household correction history used as few-shot examples.
+- ✅ **User feedback integration** — Inline thumbs up/down on auto-categorized transactions in the transaction list. Thumbs-down records `incorrect` without interrupting flow. Feedback feeds back into the LLM as few-shot examples.
+- ✅ **Admin roles** — `admin` / `member` roles on users. Settings page restricted to admins. Admins can invite members, remove members, and promote members to admin.
+- ✅ **Budgeting features** — Monthly budgets per category with progress tracking.
+- ✅ **Goal tracking** — Savings goals with target amounts and deadlines.
+- ✅ **Bill reminders** — Recurring bill tracking with due-date awareness.
+- ✅ **Magic-link auth** — Replaced dev-resolver with production magic-link sign-in via Resend.
+- ✅ **Custom domain** — Live at `https://pennywise.mcconnalino.com`.
 
 ---
 
-## 9. Open Questions & Decisions Needed
+## 9. Open Questions & Decisions
 
 ### Technical Decisions
-- [ ] Which PDF parsing library? (PyPDF2, pdfplumber, Tabula)
-- [ ] Client-side vs server-side file parsing?
-- [ ] Real-time vs batch transaction processing?
+- [ ] Which PDF parsing library? (intentionally deferred — CSV-only for now)
+- [x] Client-side vs server-side file parsing? → **Server-side** (Fastify route, streamed multipart)
+- [x] Real-time vs batch transaction processing? → **Synchronous** for CSV (fast enough); pg-boss queue available for heavier future work
 
 ### Product Decisions
-- [ ] Should we support bank API connections as an alternative to uploads?
-- [ ] Multi-currency support priority?
-- [ ] Budgeting features in initial release or later phase?
-- [ ] Shared account access (e.g., partners/spouses)?
+- [x] Should we support bank API connections? → **No** — privacy-first, upload-only. Plaid/Yodlee listed as future consideration only.
+- [ ] Multi-currency support priority? → Not yet addressed
+- [x] Budgeting features timing? → **Shipped Phase 2/3**
+- [x] Shared account access? → **Shipped Phase 4** via household model + invite flow + admin roles
 
 ### Business Decisions
 - [ ] Pricing model: Free tier + premium? Freemium? Subscription?
@@ -491,7 +505,17 @@ Transaction {
   original_description: String (from statement)
   auto_categorized: Boolean
   confidence_score: Float (0-1)
+  categorization_feedback: Enum(correct, incorrect) | null  // set via inline thumbs UI
   splits: Array<TransactionSplit> (optional)
+  created_at: Timestamp
+  updated_at: Timestamp
+}
+
+User {
+  id: UUID
+  email: String
+  household_id: UUID (foreign key)
+  role: Enum(admin, member)  // first user in household is admin; invited users are member
   created_at: Timestamp
   updated_at: Timestamp
 }
@@ -521,6 +545,6 @@ Transaction {
 
 ---
 
-*Document Version: 1.0*  
-*Last Updated: January 31, 2026*  
+*Document Version: 2.0*  
+*Last Updated: May 21, 2026*  
 *Owner: Bill (Product Manager)*
