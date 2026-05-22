@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <radialGradient id="coin" cx="38%" cy="35%" r="60%">
+      <stop offset="0%"   stop-color="#e8925a"/>
+      <stop offset="50%"  stop-color="#b5651d"/>
+      <stop offset="100%" stop-color="#7a3b0e"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Coin rim -->
+  <circle cx="16" cy="16" r="15" fill="#7a3b0e"/>
+
+  <!-- Coin face -->
+  <circle cx="16" cy="16" r="13" fill="url(#coin)"/>
+
+  <!-- Shine arc -->
+  <path d="M9 9 Q16 6 23 9" stroke="#f0a96b" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- ¢ symbol -->
+  <text x="16" y="21" text-anchor="middle" font-family="Georgia, serif" font-size="13" font-weight="bold" fill="#7a3b0e" opacity="0.75">¢</text>
+</svg>
