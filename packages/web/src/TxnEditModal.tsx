@@ -162,7 +162,7 @@ export function TxnEditModal(props: {
         <header className="mb-3 flex items-baseline justify-between">
           <h2 className="text-lg font-semibold">Edit transaction</h2>
           <span className="text-xs text-zinc-500 tabular-nums">
-            {props.txn.transactionDate} · {fmtMoney(props.txn.amount)}
+            {props.txn.transactionDate} · {fmtDisplayAmount(props.txn.amount)}
           </span>
         </header>
 
@@ -473,6 +473,15 @@ function Field(props: { label: string; children: React.ReactNode }) {
 
 function fmtMoney(s: string): string {
   return Number(s).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+}
+
+// User-facing sign convention: expenses (positive internally) show as -$X, income as +$X.
+function fmtDisplayAmount(s: string): string {
+  const n = Number(s);
+  const abs = Math.abs(n).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  if (n > 0) return `-${abs}`;
+  if (n < 0) return `+${abs}`;
+  return abs;
 }
 
 function fmtRelative(iso: string): string {
