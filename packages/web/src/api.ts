@@ -291,6 +291,7 @@ export interface RuleApplyResult {
   scanned: number;
   matched: number;
   updated: number;
+  rulesFound: number;
 }
 
 function dispatchAuthExpired() {

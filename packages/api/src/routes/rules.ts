@@ -208,9 +208,6 @@ export const ruleRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) =>
       );
 
     const sorted = sortRules(rules as RuleLike[]);
-    if (sorted.length === 0) {
-      return { matched: 0, updated: 0, scanned: 0 };
-    }
 
     const conditions = [eq(transactions.householdId, household.id)];
     if (accountId) conditions.push(eq(transactions.accountId, accountId));
@@ -234,6 +231,10 @@ export const ruleRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) =>
       .from(transactions)
       .where(and(...conditions));
 
+    if (sorted.length === 0) {
+      return { scanned: txns.length, matched: 0, updated: 0, rulesFound: 0 };
+    }
+
     let matched = 0;
     let updated = 0;
     for (const t of txns) {
@@ -252,6 +253,6 @@ export const ruleRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) =>
       if (res.length > 0) updated += 1;
     }
 
-    return { scanned: txns.length, matched, updated };
+    return { scanned: txns.length, matched, updated, rulesFound: sorted.length };
   });
 };

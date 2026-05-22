@@ -31,6 +31,7 @@ export function TxnEditModal(props: {
   const [tagsInput, setTagsInput] = useState(props.txn.tags.join(', '));
   const [categoryId, setCategoryId] = useState(props.txn.categoryId ?? '');
   const [step, setStep] = useState<Step>('editing');
+  const [editablePattern, setEditablePattern] = useState('');
   const [splits, setSplits] = useState<SplitInput[]>([]);
   const [splitsLoaded, setSplitsLoaded] = useState(false);
 
@@ -101,6 +102,7 @@ export function TxnEditModal(props: {
       invalidateAll();
       const categoryChanged = (categoryId || null) !== props.txn.categoryId;
       if (result !== null && categoryChanged && categoryId) {
+        setEditablePattern(merchant.trim() || description.trim());
         setStep('confirm-rule');
       } else {
         props.onClose();
@@ -123,9 +125,10 @@ export function TxnEditModal(props: {
   const createRuleMutation = useMutation({
     mutationFn: () => {
       if (!categoryId) throw new Error('No category selected');
+      if (!editablePattern.trim()) throw new Error('Pattern cannot be empty');
       return createRule({
         matchType: ruleMatchType,
-        pattern: rulePattern,
+        pattern: editablePattern.trim(),
         categoryId,
         caseInsensitive: true,
       });
@@ -140,7 +143,6 @@ export function TxnEditModal(props: {
     mutationFn: () => applyRulesNow('all_unedited'),
     onSuccess: () => {
       invalidateAll();
-      props.onClose();
     },
   });
 
@@ -169,11 +171,22 @@ export function TxnEditModal(props: {
         {step === 'confirm-rule' && (
           <div className="flex flex-col gap-3">
             <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
-              <p className="mb-1 text-sm font-medium text-teal-900">Create a categorization rule?</p>
-              <p className="text-sm text-teal-700">
-                Automatically categorize future{' '}
-                <span className="font-medium">"{rulePattern}"</span> transactions as{' '}
-                <span className="font-medium">{categoryName}</span>.
+              <p className="mb-2 text-sm font-medium text-teal-900">Create a categorization rule?</p>
+              <p className="mb-1.5 text-sm text-teal-700">
+                Categorize as <span className="font-medium">{categoryName}</span> when the{' '}
+                <span className="font-medium">
+                  {ruleMatchType === 'merchant_contains' ? 'merchant' : 'description'}
+                </span>{' '}
+                contains:
+              </p>
+              <input
+                className="w-full rounded border border-teal-300 bg-white px-2 py-1 text-sm"
+                value={editablePattern}
+                onChange={(e) => setEditablePattern(e.target.value)}
+                placeholder="match pattern"
+              />
+              <p className="mt-1.5 text-xs text-teal-600">
+                Tip: shorten to the stable part of the name (e.g. "Spotify" not the full description with codes).
               </p>
             </div>
             {createRuleMutation.error && (
@@ -182,7 +195,7 @@ export function TxnEditModal(props: {
             <div className="flex gap-2">
               <button
                 type="button"
-                disabled={createRuleMutation.isPending}
+                disabled={createRuleMutation.isPending || !editablePattern.trim()}
                 onClick={() => createRuleMutation.mutate()}
                 className="rounded bg-emerald-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
               >
@@ -203,22 +216,36 @@ export function TxnEditModal(props: {
           <div className="flex flex-col gap-3">
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
               <p className="mb-1 text-sm font-medium text-emerald-900">Rule created.</p>
-              <p className="text-sm text-emerald-700">
-                Apply it now to re-categorize existing unedited transactions?
-              </p>
+              {applyRules.isSuccess ? (
+                <p className="text-sm text-emerald-700">
+                  {applyRules.data.rulesFound === 0
+                    ? 'No enabled rules found — the rule may not have saved. Try closing and re-opening the modal.'
+                    : applyRules.data.scanned === 0
+                      ? 'No eligible transactions found. All transactions are already manually categorized.'
+                      : applyRules.data.matched === 0
+                        ? `Scanned ${applyRules.data.scanned} transaction${applyRules.data.scanned !== 1 ? 's' : ''} but none matched the pattern. Try editing the rule in Settings → Rules.`
+                        : `Updated ${applyRules.data.updated} of ${applyRules.data.scanned} transaction${applyRules.data.scanned !== 1 ? 's' : ''}.`}
+                </p>
+              ) : (
+                <p className="text-sm text-emerald-700">
+                  Apply it now to re-categorize existing unedited transactions?
+                </p>
+              )}
             </div>
             {applyRules.error && (
               <p className="text-sm text-red-600">{(applyRules.error as Error).message}</p>
             )}
             <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={applyRules.isPending}
-                onClick={() => applyRules.mutate()}
-                className="rounded bg-emerald-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
-              >
-                {applyRules.isPending ? 'Applying…' : 'Apply to past transactions'}
-              </button>
+              {!applyRules.isSuccess && (
+                <button
+                  type="button"
+                  disabled={applyRules.isPending}
+                  onClick={() => applyRules.mutate()}
+                  className="rounded bg-emerald-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50"
+                >
+                  {applyRules.isPending ? 'Applying…' : 'Apply to past transactions'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={props.onClose}
