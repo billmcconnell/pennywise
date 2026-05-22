@@ -89,29 +89,18 @@ async function maybePromoteToRule(
     );
   if ((countRows[0]?.n ?? 0) < 2) return;
 
-  const existing = await db
-    .select({ id: categorizationRules.id })
-    .from(categorizationRules)
-    .where(
-      and(
-        eq(categorizationRules.householdId, householdId),
-        eq(categorizationRules.matchType, matchType as 'merchant_contains' | 'description_contains'),
-        eq(categorizationRules.pattern, matchTerm),
-        eq(categorizationRules.enabled, true),
-      ),
-    )
-    .limit(1);
-  if (existing.length > 0) return;
-
-  await db.insert(categorizationRules).values({
-    householdId,
-    matchType: matchType as 'merchant_contains' | 'description_contains',
-    pattern: matchTerm,
-    caseInsensitive: true,
-    categoryId: newCategoryId,
-    priority: 0,
-    enabled: true,
-  });
+  await db
+    .insert(categorizationRules)
+    .values({
+      householdId,
+      matchType: matchType as 'merchant_contains' | 'description_contains',
+      pattern: matchTerm,
+      caseInsensitive: true,
+      categoryId: newCategoryId,
+      priority: 0,
+      enabled: true,
+    })
+    .onConflictDoNothing();
 }
 
 export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) => {

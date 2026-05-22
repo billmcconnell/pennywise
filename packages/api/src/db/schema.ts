@@ -342,5 +342,6 @@ export const categorizationRules = pgTable(
   (t) => [
     index('rules_household_idx').on(t.householdId),
     index('rules_priority_idx').on(t.householdId, t.enabled, t.priority),
+    uniqueIndex('rules_household_matchtype_pattern_uq').on(t.householdId, t.matchType, t.pattern),
   ],
 );

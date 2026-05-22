@@ -69,6 +69,21 @@ export const ruleRoutes: (db: Db) => FastifyPluginAsync = (db) => async (app) =>
       .limit(1);
     if (cat.length === 0) return reply.code(400).send({ error: 'category not found' });
 
+    const existingRule = await db
+      .select()
+      .from(categorizationRules)
+      .where(
+        and(
+          eq(categorizationRules.householdId, household.id),
+          eq(categorizationRules.matchType, body.matchType),
+          eq(categorizationRules.pattern, body.pattern),
+        ),
+      )
+      .limit(1);
+    if (existingRule.length > 0) {
+      return existingRule[0];
+    }
+
     const inserted = await db
       .insert(categorizationRules)
       .values({
