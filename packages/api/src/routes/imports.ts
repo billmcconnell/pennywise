@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { FastifyPluginAsync } from 'fastify';
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import type { AppConfig } from '../config.js';
 import { accounts, categories, categorizationRules, transactionEdits, transactions } from '../db/schema.js';
@@ -238,12 +238,34 @@ export const importRoutes: (db: Db, config: AppConfig) => FastifyPluginAsync =
         }
       }
 
-      // Phase 3: insert all rows
+      // Phase 3: insert all rows, skipping already-imported ones
       let inserted = 0;
       let skipped = 0;
       let autoCategorized = 0;
 
+      // Pre-flight: find which fingerprints already exist for this account so we
+      // can skip them without relying solely on the DB conflict mechanism.
+      const candidateFingerprints = pending.map((p) => p.row.fingerprint);
+      const existingSet = new Set<string>();
+      if (candidateFingerprints.length > 0) {
+        const existingRows = await db
+          .select({ fingerprint: transactions.fingerprint })
+          .from(transactions)
+          .where(
+            and(
+              eq(transactions.accountId, accountIdValue),
+              inArray(transactions.fingerprint, candidateFingerprints),
+            ),
+          );
+        for (const r of existingRows) existingSet.add(r.fingerprint);
+      }
+
       for (const item of pending) {
+        if (existingSet.has(item.row.fingerprint)) {
+          skipped += 1;
+          continue;
+        }
+
         const result = await db
           .insert(transactions)
           .values({
@@ -259,15 +281,14 @@ export const importRoutes: (db: Db, config: AppConfig) => FastifyPluginAsync =
             autoCategorized: item.autoCategorized,
             confidenceScore: item.confidenceScore,
           })
-          .onConflictDoNothing({
-            target: [transactions.accountId, transactions.fingerprint],
-          })
+          .onConflictDoNothing()
           .returning({ id: transactions.id });
 
         if (result.length > 0) {
           inserted += 1;
           if (item.autoCategorized) autoCategorized += 1;
         } else {
+          // Caught by DB constraint (concurrent upload race); count as skipped
           skipped += 1;
         }
       }
