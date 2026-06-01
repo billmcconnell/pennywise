@@ -455,6 +455,11 @@ export function patchTransaction(id: string, body: TransactionUpdateBody): Promi
   return jsend<Transaction>(`/api/transactions/${id}`, 'PATCH', body);
 }
 
+export async function deleteTransaction(id: string): Promise<void> {
+  const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`delete ${res.status}`);
+}
+
 export function submitCategorizationFeedback(id: string, correct: boolean): Promise<{ ok: boolean }> {
   return jsend<{ ok: boolean }>(`/api/transactions/${id}/feedback`, 'POST', { correct });
 }

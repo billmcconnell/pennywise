@@ -299,6 +299,23 @@ export const transactionRoutes: (db: Db) => FastifyPluginAsync = (db) => async (
     return updated[0];
   });
 
+  app.delete<{ Params: { id: string } }>('/transactions/:id', async (req, reply) => {
+    const household = req.household;
+    if (!household) return reply.code(401).send({ error: 'no household' });
+
+    const idCheck = z.string().uuid().safeParse(req.params.id);
+    if (!idCheck.success) return reply.code(400).send({ error: 'bad id' });
+
+    const deleted = await db
+      .delete(transactions)
+      .where(and(eq(transactions.id, req.params.id), eq(transactions.householdId, household.id)))
+      .returning({ id: transactions.id });
+
+    if (deleted.length === 0) return reply.code(404).send({ error: 'not found' });
+
+    return reply.code(204).send();
+  });
+
   app.get<{ Params: { id: string } }>('/transactions/:id/history', async (req, reply) => {
     const household = req.household;
     if (!household) return reply.code(401).send({ error: 'no household' });

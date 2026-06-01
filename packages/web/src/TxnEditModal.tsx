@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   applyRulesNow,
   createRule,
+  deleteTransaction,
   fetchTransactionHistory,
   fetchTransactionSplits,
   patchTransaction,
@@ -31,6 +32,7 @@ export function TxnEditModal(props: {
   const [tagsInput, setTagsInput] = useState(props.txn.tags.join(', '));
   const [categoryId, setCategoryId] = useState(props.txn.categoryId ?? '');
   const [step, setStep] = useState<Step>('editing');
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [editablePattern, setEditablePattern] = useState('');
   const [splits, setSplits] = useState<SplitInput[]>([]);
   const [splitsLoaded, setSplitsLoaded] = useState(false);
@@ -74,6 +76,14 @@ export function TxnEditModal(props: {
         tags: [],
         categoryId: null,
       }),
+    onSuccess: () => {
+      invalidateAll();
+      props.onClose();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteTransaction(props.txn.id),
     onSuccess: () => {
       invalidateAll();
       props.onClose();
@@ -445,42 +455,76 @@ export function TxnEditModal(props: {
             )}
 
             <footer className="mt-4 flex flex-wrap items-center justify-between gap-2">
-              <button
-                type="button"
-                disabled={revert.isPending}
-                onClick={() => revert.mutate()}
-                className="rounded-xl border border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
-              >
-                {revert.isPending ? 'Reverting…' : 'Revert to original'}
-              </button>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={props.onClose}
-                  className="rounded px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-100"
-                >
-                  Cancel
-                </button>
-                {hasSplits ? (
-                  <button
-                    type="button"
-                    disabled={saveSplits.isPending || !splitSumOk || splits.length < 2}
-                    onClick={() => saveSplits.mutate()}
-                    className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
-                  >
-                    {saveSplits.isPending ? 'Saving…' : 'Save splits'}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={save.isPending}
-                    onClick={() => save.mutate()}
-                    className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
-                  >
-                    {save.isPending ? 'Saving…' : 'Save'}
-                  </button>
-                )}
-              </div>
+              {confirmDelete ? (
+                <>
+                  <span className="text-sm text-red-600">Delete this transaction? This can't be undone.</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      className="rounded px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-100"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deleteMutation.isPending}
+                      onClick={() => deleteMutation.mutate()}
+                      className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {deleteMutation.isPending ? 'Deleting…' : 'Yes, delete'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(true)}
+                      className="rounded-xl border border-red-200 px-3 py-1 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      type="button"
+                      disabled={revert.isPending}
+                      onClick={() => revert.mutate()}
+                      className="rounded-xl border border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+                    >
+                      {revert.isPending ? 'Reverting…' : 'Revert to original'}
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={props.onClose}
+                      className="rounded px-3 py-1 text-sm text-zinc-700 hover:bg-zinc-100"
+                    >
+                      Cancel
+                    </button>
+                    {hasSplits ? (
+                      <button
+                        type="button"
+                        disabled={saveSplits.isPending || !splitSumOk || splits.length < 2}
+                        onClick={() => saveSplits.mutate()}
+                        className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
+                      >
+                        {saveSplits.isPending ? 'Saving…' : 'Save splits'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={save.isPending}
+                        onClick={() => save.mutate()}
+                        className="rounded bg-emerald-500 px-3 py-1 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
+                      >
+                        {save.isPending ? 'Saving…' : 'Save'}
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </footer>
           </>
         )}
