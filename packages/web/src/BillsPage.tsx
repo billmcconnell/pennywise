@@ -12,6 +12,24 @@ import {
   type Category,
 } from './api';
 
+interface CategoryOption {
+  id: string;
+  label: string;
+}
+
+function buildCategoryOptions(cats: Category[]): CategoryOption[] {
+  const byId = new Map(cats.map((c) => [c.id, c]));
+  return cats
+    .map((c) => {
+      if (c.parentId) {
+        const parent = byId.get(c.parentId);
+        return { id: c.id, label: `${parent?.name ?? '?'} › ${c.name}` };
+      }
+      return { id: c.id, label: c.name };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 const monthOptions = (() => {
   const out: string[] = [];
   for (let y = 2024; y <= 2025; y++) {
@@ -100,7 +118,7 @@ export function BillsPage() {
       {/* Add bill form */}
       {showAddForm && (
         <AddBillForm
-          categories={catsQ.data ?? []}
+          categories={buildCategoryOptions(catsQ.data ?? [])}
           onSubmit={(body) => create.mutate(body)}
           isPending={create.isPending}
           error={create.error as Error | null}
@@ -297,7 +315,7 @@ function AddBillForm({
   isPending,
   error,
 }: {
-  categories: Category[];
+  categories: CategoryOption[];
   onSubmit: (body: BillCreateBody) => void;
   isPending: boolean;
   error: Error | null;
@@ -307,8 +325,6 @@ function AddBillForm({
   const [expectedAmount, setExpectedAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [dueDay, setDueDay] = useState('');
-
-  const topLevel = categories.filter((c) => c.parentId === null);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -369,8 +385,8 @@ function AddBillForm({
           onChange={(e) => setCategoryId(e.target.value)}
         >
           <option value="">— optional —</option>
-          {topLevel.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>{c.label}</option>
           ))}
         </select>
       </FormField>
