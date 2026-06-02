@@ -29,8 +29,15 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-2xl font-bold text-zinc-900">Pennywise</h1>
-        <p className="mb-6 text-sm text-zinc-500">Personal finance tracker</p>
+        <div className="mb-6 flex items-center gap-3">
+          <svg width="36" height="36" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <rect x="0"  y="0"  width="13" height="13" rx="3" fill="#0B3F3A" />
+            <rect x="15" y="0"  width="13" height="13" rx="3" fill="#94A3B8" />
+            <rect x="0"  y="15" width="13" height="13" rx="3" fill="#CBD5E1" />
+            <rect x="15" y="15" width="13" height="13" rx="3" fill="#22C55E" />
+          </svg>
+          <span className="text-2xl font-bold text-zinc-900">Pennywise</span>
+        </div>
 
         {state === 'sent' ? (
           <div className="space-y-3">
