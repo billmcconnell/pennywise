@@ -1706,7 +1706,6 @@ function RecentActivityCard(props: {
               onChange={(e) => setCategoryFilter(e.target.value)}
             >
               <option value="">All categories</option>
-              <option value="none">Uncategorized</option>
               {(catsQ.data ?? []).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.parentId ? `  ${c.name}` : c.name}
