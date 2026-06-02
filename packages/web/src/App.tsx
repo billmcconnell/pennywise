@@ -968,18 +968,14 @@ function BudgetsPage() {
     },
   });
 
-  // Top-level categories only (no parentId)
-  const topLevelCats = useMemo(
-    () => (catsQ.data ?? []).filter((c) => c.parentId === null),
-    [catsQ.data],
-  );
+  const categoryOptions = useMemo(() => buildCategoryOptions(catsQ.data ?? []), [catsQ.data]);
   const budgetedIds = useMemo(
     () => new Set((budgetsQ.data ?? []).map((b) => b.categoryId)),
     [budgetsQ.data],
   );
   const availableCats = useMemo(
-    () => topLevelCats.filter((c) => !budgetedIds.has(c.id)),
-    [topLevelCats, budgetedIds],
+    () => categoryOptions.filter((c) => !budgetedIds.has(c.id)),
+    [categoryOptions, budgetedIds],
   );
 
   return (
@@ -1008,7 +1004,7 @@ function BudgetsPage() {
 }
 
 function NewBudgetForm(props: {
-  categories: Category[];
+  categories: CategoryOption[];
   onSubmit: (categoryId: string, amount: string) => void;
   isPending: boolean;
   error: Error | null;
@@ -1039,7 +1035,7 @@ function NewBudgetForm(props: {
           <option value="">— choose —</option>
           {props.categories.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name}
+              {c.label}
             </option>
           ))}
         </select>
