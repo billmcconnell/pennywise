@@ -65,6 +65,7 @@ export function TxnEditModal(props: {
     qc.invalidateQueries({ queryKey: ['category-trends'] });
     qc.invalidateQueries({ queryKey: ['txn-history', props.txn.id] });
     qc.invalidateQueries({ queryKey: ['txn-splits', props.txn.id] });
+    qc.invalidateQueries({ queryKey: ['available-months'] });
   };
 
   const revert = useMutation({

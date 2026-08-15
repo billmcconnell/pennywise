@@ -622,6 +622,7 @@ function UploadForm(props: { accounts: Account[] }) {
       qc.invalidateQueries({ queryKey: ['by-month'] });
       qc.invalidateQueries({ queryKey: ['top-merchants'] });
       qc.invalidateQueries({ queryKey: ['accounts'] });
+      qc.invalidateQueries({ queryKey: ['available-months'] });
       setFile(null);
     },
   });
