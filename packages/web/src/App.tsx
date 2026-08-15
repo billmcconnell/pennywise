@@ -544,15 +544,9 @@ function Dashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
         </div>
       </div>
 
-      <BalanceHero
-        accounts={accountsQ.data ?? []}
-        onImport={() => document.getElementById('upload-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-        onAddAccount={() => onNavigate('accounts')}
-      />
+      <BalanceHero accounts={accountsQ.data ?? []} />
 
-      <div id="upload-form">
-        <UploadForm accounts={accountsQ.data ?? []} />
-      </div>
+      <UploadForm accounts={accountsQ.data ?? []} />
 
       <SummaryCards
         summary={summaryQ.data}
